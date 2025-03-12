@@ -1,11 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FINPACK</title>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>FINPACK</title>
+        <link rel="stylesheet" href="styles.css">
+        <!-- <script src="script.js"></script> -->
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="logo">
+      <a href="#home">
+        <img src="logo3.png" alt="Logo"> <!-- Add your logo file -->
+        <span>FinPack</span>
+      </a>
+    </div>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#home">Home</a></li>
+      <li><a href="#services">Services</a></li>
+      <li><a href="#about">About Us</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <div class="nav-buttons">
+      <a href="login.php" class="login-button">Log In</a>
+      <a href="register.php" class="get-started-button">Get Started</a>
+    </div>
+    <div class="menu-toggle" id="mobile-menu">
+      <span class="bar"></span>
+      <span class="bar"></span>
+      <span class="bar"></span>
+    </div>
+  </nav>
+
+ <!-- Hero Section -->
+ <section id="home" class="hero">
+    <div class="hero-content">
+      <h1>Simplify Your Finances</h1>
+      <p>Smart, Secure, and Seamless Accounting at Your Fingertips!</p>
+      <div class="hero-buttons">
+        <a href="#services" class="cta-button">Explore Services</a>
+        <a href="login-register.html?action=register" class="get-started-button">Get Started</a>
+      </div>
+    </div>
     
+    <div class="hero-slider">
+      <div class="slides-container">
+        <div class="slide">
+          <img src="hero-image1.jpg" alt="Slide 1">
+        </div>
+        <div class="slide">
+          <img src="hero-image2.png" alt="Slide 2">
+        </div>
+        <div class="slide">
+          <img src="hero-image6.png" alt="Slide 3">
+        </div>
+        <div class="slide">
+          <img src="hero-image4.png" alt="Slide 4">
+        </div>
+        <div class="slide">
+            <img src="hero-image3" alt="Slide 4">
+          </div>
+      </div>
+    </div>
+  </section>
+  
+  
+
+  <section id="services" class="services">
+    <h2>Our Services</h2>
+    <div class="service-cards">
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <h3>Ledger Management</h3>
+        <p>Effortlessly create, track, and update ledgers with real-time accuracy.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📝</div>
+        <h3>Voucher Entry</h3>
+        <p>Seamless payment, receipt, and journal entries at your fingertips.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📈</div>
+        <h3>Financial Reports</h3>
+        <p>Instantly generate P&L, balance sheets, and insightful financial summaries.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📦</div>
+        <h3>Inventory Management</h3>
+        <p>Track stock movements and maintain accurate inventory records effortlessly.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">💳</div>
+        <h3>Transactions Management</h3>
+        <p>Monitor and control cash flow with real-time transaction tracking.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">👥</div>
+        <h3>Multi-User Access</h3>
+        <p>Empower your team with secure role-based financial management.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- About Us Section -->
+<section id="about" class="about">
+  <h2>About FINPACK</h2>
+  <div class="about-content">
+    <div class="about-text">
+      <p>FINPACK is your ultimate digital accounting solution, designed to streamline financial management with efficiency and accuracy. Say goodbye to complex paperwork and embrace a smarter way to handle your accounts.</p>
+      <p>From seamless ledger management to automated transactions and insightful reports, FINPACK empowers businesses with real-time financial control. Whether you're a startup or an enterprise, we make accounting effortless, so you can focus on growth!</p>
+      <a href="#contact" class="cta-button">Get Started Today</a>
+    </div>
+    <div class="about-image">
+      <img src="about-img1.webp" alt="About FINPACK">
+    </div>
+  </div>
+</section>
+
+
+  <!-- Contact Section -->
+  <section id="contact" class="contact">
+    <h2>Contact Us</h2>
+    <form id="contact-form">
+      <div class="form-group">
+        <input type="text" id="name" placeholder="Your Name" required>
+      </div>
+      <div class="form-group">
+        <input type="email" id="email" placeholder="Your Email" required>
+      </div>
+      <div class="form-group">
+        <textarea id="message" placeholder="Your Message" required></textarea>
+      </div>
+      <button type="submit">Send Message</button>
+    </form>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2025 FinPack. All rights reserved.</p>
+  </footer>
+
+  <script src="script.js"></script>
 </body>
 </html>
