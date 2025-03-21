@@ -79,11 +79,85 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Company Head Registration</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style> 
+        /* General Styles */
+body {
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(to right, rgb(120, 177, 239), rgb(77, 204, 229));
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+}
+
+/* Card Container */
+.card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 450px;
+    padding: 20px;
+}
+
+/* Card Header */
+.card-header {
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    border-radius: 12px 12px 0 0;
+    padding: 15px;
+}
+
+/* Input Fields */
+.form-control {
+    background: rgba(255, 255, 255, 0.3);
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 16px;
+    transition: 0.3s ease-in-out;
+    color: #333;
+}
+
+.form-control::placeholder {
+    color: rgba(51, 51, 51, 0.6);
+}
+
+.form-control:focus {
+    background: rgba(255, 255, 255, 0.6);
+    box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.3);
+}
+
+/* Submit Button */
+.btn-primary {
+    background: linear-gradient(to right, #007bff, #0056b3);
+    border: none;
+    padding: 12px;
+    font-size: 18px;
+    border-radius: 8px;
+    transition: 0.3s;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(to right, #0056b3, #003f7f);
+    transform: scale(1.05);
+}
+
+/* Responsive Design */
+@media (max-width: 576px) {
+    .card {
+        max-width: 90%;
+    }
+}
+
+    </style>
+    <link rel="stylesheet" href="reg_styles.css">
 </head>
 <body class="bg-light">
-
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-6">
@@ -118,8 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </div>
 </div>
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>
 

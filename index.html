@@ -4,8 +4,51 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>FINPACK</title>
-        <link rel="stylesheet" href="styles.css">
-        <!-- <script src="script.js"></script> -->
+
+        <script>
+          document.addEventListener("DOMContentLoaded", function () {
+
+            // Responsive Menu Toggle
+    const menuToggle = document.getElementById("mobile-menu");
+    const navLinks = document.querySelector(".nav-links");
+
+    menuToggle.addEventListener("click", function () {
+        navLinks.classList.toggle("active");
+    });
+
+              let slides = document.querySelectorAll(".slide");
+              let index = 0;
+              let totalSlides = slides.length;
+      
+              // Ensure all slides are positioned properly
+              slides.forEach((slide, i) => {
+                  slide.style.opacity = i === 0 ? "1" : "0";
+                  slide.style.position = "absolute";
+                  slide.style.transition = "opacity 1s ease-in-out";
+              });
+      
+              function showNextSlide() {
+                  let current = index;
+                  let next = (index + 1) % totalSlides;
+      
+                  // Fade out current slide
+                  slides[current].style.opacity = "0";
+      
+                  // Ensure the next slide is visible before fading it in
+                  setTimeout(() => {
+                      slides[next].style.opacity = "1";
+                  }, 200); // Short delay for smooth transition
+      
+                  index = next;
+              }
+      
+              // Start the slideshow with an interval of 3 seconds
+              setInterval(showNextSlide, 1800);
+          });
+      </script>
+      
+        <link rel="stylesheet" href="index-style.css">
+
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -13,7 +56,7 @@
   <nav class="navbar">
     <div class="logo">
       <a href="#home">
-        <img src="logo3.png" alt="Logo"> <!-- Add your logo file -->
+        <img src="images/logo3.png" alt="Logo"> <!-- Add your logo file -->
         <span>FinPack</span>
       </a>
     </div>
@@ -40,31 +83,29 @@
       <h1>Simplify Your Finances</h1>
       <p>Smart, Secure, and Seamless Accounting at Your Fingertips!</p>
       <div class="hero-buttons">
-        <a href="#services" class="cta-button">Explore Services</a>
-        <a href="login-register.html?action=register" class="get-started-button">Get Started</a>
+        <a href="#services" class="cta1-button">Explore Services</a>
+        <!-- <a href="login-register.html?action=register" class="get-started-button">Get Started</a> -->
       </div>
     </div>
     
     <div class="hero-slider">
       <div class="slides-container">
         <div class="slide">
-          <img src="hero-image1.jpg" alt="Slide 1">
+          <img src="images/hero-image1.jpg" alt="Slide 1">
         </div>
         <div class="slide">
-          <img src="hero-image2.png" alt="Slide 2">
+          <img src="images/hero-image2.png" alt="Slide 2">
         </div>
         <div class="slide">
-          <img src="hero-image6.png" alt="Slide 3">
+          <img src="images/hero-image4.png" alt="Slide 3">
         </div>
         <div class="slide">
-          <img src="hero-image4.png" alt="Slide 4">
+          <img src="images/hero-image6.png" alt="Slide 4">
         </div>
       </div>
     </div>
   </section>
   
-  
-
   <section id="services" class="services">
     <h2>Our Services</h2>
     <div class="service-cards">
@@ -109,10 +150,10 @@
     <div class="about-text">
       <p>FINPACK is your ultimate digital accounting solution, designed to streamline financial management with efficiency and accuracy. Say goodbye to complex paperwork and embrace a smarter way to handle your accounts.</p>
       <p>From seamless ledger management to automated transactions and insightful reports, FINPACK empowers businesses with real-time financial control. Whether you're a startup or an enterprise, we make accounting effortless, so you can focus on growth!</p>
-      <a href="#contact" class="cta-button">Get Started Today</a>
+      <a href="registeration/company_register.php" class="cta-button">Get Started Today</a>
     </div>
     <div class="about-image">
-      <img src="about-img1.webp" alt="About FINPACK">
+      <img src="images/about-img1.webp" alt="About FINPACK">
     </div>
   </div>
 </section>
@@ -126,32 +167,38 @@
 
 <!-- Testimonials Section -->
 <section id="testimonials" class="testimonials">
-<h2>What Our Clients Say</h2>
-<div class="testimonial-cards">
-  <!-- Card 1 -->
-  <div class="testimonial-card">
-    <p>"FINPACK has revolutionized our accounting process. It's fast, reliable, and easy to use!"</p>
-    <h3>- John Doe, CEO of XYZ Ltd.</h3>
-  </div>
+  <h2>What Our Clients Say</h2>
+  <div class="testimonials-container">
+      <!-- Left Side Image -->
+      <div class="testimonial-image">
+          <img src="images/review.png" alt="Happy Clients">
+      </div>
 
-  <!-- Card 2 -->
-  <div class="testimonial-card">
-    <p>"The financial reports are incredibly insightful. Highly recommend FINPACK to all businesses."</p>
-    <h3>- Jane Smith, CFO of ABC Corp.</h3>
-  </div>
+      <!-- Right Side - Testimonials -->
+      <div class="testimonial-cards">
+          <div class="testimonial-card">
+              <p>"FINPACK has revolutionized our accounting process. It's fast, reliable, and easy to use!"</p>
+              <h3>- John Doe, CEO of XYZ Ltd.</h3>
+          </div>
 
-  <!-- Card 3 -->
-  <div class="testimonial-card">
-    <p>"Multi-user access has made teamwork easier than ever. A must-have tool for any company."</p>
-    <h3>- Mike Johnson, Manager at LMN Group.</h3>
+          <div class="testimonial-card">
+              <p>"The financial reports are incredibly insightful. Highly recommend FINPACK to all businesses."</p>
+              <h3>- Jane Smith, CFO of ABC Corp.</h3>
+          </div>
+
+          <div class="testimonial-card">
+              <p>"Multi-user access has made teamwork easier than ever. A must-have tool for any company."</p>
+              <h3>- Mike Johnson, Manager at LMN Group.</h3>
+          </div>
+      </div>
   </div>
-</div>
 </section>
+
 
   <!-- Contact Section -->
   <section id="contact" class="contact">
     <h2>Contact Us</h2>
-    <form id="contact-form">
+    <form id="contact-form" action="contact.php" method="POST">
       <div class="form-group">
         <input type="text" id="name" placeholder="Your Name" required>
       </div>
