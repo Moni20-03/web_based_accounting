@@ -133,19 +133,10 @@ a {
   padding: 150px 10% 100px;
   background: linear-gradient(135deg, #1abc9c, #3498db);
   color: #fff;
-  overflow: hidden; /* Hide overflow for slider */
 }
 
 .hero-content {
   max-width: 50%;
-  z-index: 2; /* Ensure text stays above the slider */
-}
-
-/* Image Slider */
-.hero-slider {
-  position: relative;
-  width: 50%;
-  height: 400px; /* Fixed height */
 }
 
 .hero h1 {
@@ -161,50 +152,38 @@ a {
   gap: 10px;
 }
 
+/* Image Slider */
+.hero-slider {
+  position: relative;
+  width: 50%;
+  height: 400px;
+}
+
 .slides-container {
-  display: flex;
+  position: relative;
   width: 100%;
   height: 100%;
-  transition: transform 0.5s ease-in-out; /* Smooth sliding animation */
 }
 
 .slide {
-  min-width: 100%; /* Each slide takes full width */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
   height: 100%;
-  position: relative;
-  transition: opacity 0.5s ease, filter 0.5s ease;
 }
 
 .slide img {
   width: 100%;
   height: 100%;
-  object-fit: cover; /* Maintain aspect ratio */
+  object-fit: cover;
   border-radius: 10px;
 }
 
-/* Active Slide */
-.slide.active {
-  opacity: 1;
-  filter: blur(0);
+/* Hide all slides except the first one */
+.slide:not(:first-child) {
+  display: none;
 }
-
-/* Next/Previous Slides */
-.slide:not(.active) {
-  opacity: 0.5;
-  filter: blur(3px);
-  position: absolute;
-  transform: scale(0.9);
-}
-
-/* Optional: Add directional positioning for non-active slides */
-.slide.prev {
-  left: -30%;
-}
-
-.slide.next {
-  right: -30%;
-}
-
 
 .cta-button {
   background-color: #fff;

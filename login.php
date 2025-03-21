@@ -4,47 +4,39 @@ include 'db_connection.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = trim($_POST['email']);
-    $dob = trim($_POST['dob']); // Use DOB instead of password
+    $password = trim($_POST['password']);
 
-    if (!preg_match('/^\d{8}$/', $dob)) {
-        echo "<script>alert('Invalid Date of Birth format! Use DDMMYYYY.');</script>";
-    } else {
-        // Check if email exists
-        $stmt = $conn->prepare("SELECT user_id, company_id, username, dob, role FROM users WHERE email = ?");
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
+    $stmt = $conn->prepare("SELECT user_id, company_id, username, dob, password, role FROM users WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-        if ($result->num_rows === 1) {
-            $row = $result->fetch_assoc();
-            // echo $row['dob'];
-            if ($dob === $row['dob']) { // Check DOB match
-                $_SESSION['user_id'] = $row['user_id'];
-                $_SESSION['company_id'] = $row['company_id'];
-                $_SESSION['username'] = $row['username'];
-                $_SESSION['role'] = $row['role'];
+    if ($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $stored_password = $row['password'];
 
-                // Redirect users based on role
-                if ($row['role'] == 'Company Head') {
-                    header("Location: dashboard.php");
-                } elseif ($row['role'] == 'Accountant') {
-                    header("Location: dashboard_accountant.php");
-                } elseif ($row['role'] == 'Manager') {
-                    header("Location: dashboard_manager.php");
-                } else {
-                    echo "<script>alert('Invalid Role Assigned!');</script>";
-                }
-                exit();
+        if (password_verify($password, $stored_password)) {
+            $_SESSION['user_id'] = $row['user_id'];
+            $_SESSION['company_id'] = $row['company_id'];
+            $_SESSION['username'] = $row['username'];
+            $_SESSION['role'] = $row['role'];
+
+            // Check if the password is still DOB
+            if (password_verify($row['dob'], $stored_password)) {
+                header("Location: change_password.php"); // Force password change
             } else {
-                echo "<script>alert('Incorrect Date of Birth! Try again.');</script>";
+                header("Location: dashboard.php"); // Redirect to dashboard
             }
+            exit();
         } else {
-            echo "<script>alert('No account found with this email.');</script>";
+            echo "<script>alert('Incorrect Password!');</script>";
         }
+    } else {
+        echo "<script>alert('No account found with this email.');</script>";
     }
 }
 ?>
-
+  
 
 <!DOCTYPE html>
 <html lang="en">
@@ -52,40 +44,37 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FINPACK Login</title>
-    <link rel="stylesheet" href="styles.css">
-    <script>
-        function validateLogin() {
-            let email = document.forms["loginForm"]["email"].value;
-            let dob = document.forms["loginForm"]["dob"].value;
-            let emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-            let dobPattern = /^\d{8}$/; // Should be exactly 8 digits (DDMMYYYY)
-
-            if (!email || !dob) {
-                alert("All fields are required!");
-                return false;
-            }
-            if (!emailPattern.test(email)) {
-                alert("Enter a valid email address!");
-                return false;
-            }
-            if (!dobPattern.test(dob)) {
-                alert("Enter a valid Date of Birth in DDMMYYYY format!");
-                return false;
-            }
-            return true;
-        }
-    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-    <h2>FINPACK Login</h2>
-    <form name="loginForm" method="POST" onsubmit="return validateLogin();">
-        <label>Email:</label>
-        <input type="email" name="email" required>
+<body class="d-flex align-items-center justify-content-center vh-100 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-4">
+                <div class="card shadow-lg">
+                    <div class="card-body">
+                        <h3 class="text-center">FINPACK Login</h3>
+                        <form method="POST" action="login.php">
+                            <div class="mb-3">
+                                <label class="form-label">Email:</label>
+                                <input type="email" name="email" class="form-control" required>
+                            </div>
 
-        <label>Date of Birth (DDMMYYYY):</label>
-        <input type="text" name="dob" required placeholder="DDMMYYYY" maxlength="8">
+                            <div class="mb-3">
+                                <label class="form-label">Password:</label>
+                                <input type="password" name="password" class="form-control" required>
+                            </div>
 
-        <button type="submit">Login</button>
-    </form>
+                            <div class="text-center">
+                                <button type="submit" class="btn btn-primary w-100">Login</button>
+                            </div>
+                        </form>
+                        <p class="text-center mt-3">
+                            <a href="forgot_password.php">Forgot Password?</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
