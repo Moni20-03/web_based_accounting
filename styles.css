@@ -188,7 +188,7 @@ a {
 .cta-button {
   background-color: #fff;
   color: #2c3e50;
-  padding: 10px 20px;
+  padding: 20px;
   border-radius: 5px;
   font-weight: 500;
   transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out, transform 0.3s ease-in-out;
@@ -316,6 +316,7 @@ a {
   height: auto;
   border-radius: 10px;
 }
+
 
 /* Contact Section */
 .contact {

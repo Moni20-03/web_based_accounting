@@ -17,56 +17,73 @@ $username = $_SESSION['username'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Company Head Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="dashboard.css">
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="./dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="./dashboard.js" defer></script>
 </head>
 <body>
 
-<div class="wrapper">
-    <!-- Sidebar -->
-    <nav id="sidebar">
-        <div class="sidebar-header">
-            <h3>Dashboard</h3>
-            <!-- <p class="text-white"><?= htmlspecialchars($username); ?></p> -->
-        </div>
-        <ul class="list-unstyled components">
-            <li><a href="registeration/create_roles.php"><i class="fas fa-users"></i> Manage Users</a></li>
-            <li><a href="view_reports.php"><i class="fas fa-chart-line"></i> View Reports</a></li>
-            <li><a href="manage_vouchers.php"><i class="fas fa-receipt"></i> Manage Vouchers</a></li>
-            <li><a href="manage_ledgers.php"><i class="fas fa-book"></i> Manage Ledgers</a></li>
-            <li><a href="transactions.php"><i class="fas fa-exchange-alt"></i> Manage Transactions</a></li>
-        </ul>
-        <div class="logout-btn">
-            <a href="logout.php" class="btn btn-danger w-100"><i class="fas fa-sign-out-alt"></i> Logout</a>
-        </div>
+<!-- Sidebar -->
+<div id="sidebar">
+    <div class="sidebar-header">
+        <h3>Dashboard</h3>
+        <button id="closeSidebar">&times;</button>
+    </div>
+    <ul class="menu">
+        <li class="dropdown">
+            <span>👤 Manage Users</span>
+            <ul class="submenu">
+                <li><a href="registeration/create_roles.php">Role Creation</a></li>
+                <li><a href="registeration/update_roles.php">Role Updation</a></li>
+                <li><a href="edit_company.php">Edit Company Details</a></li>
+            </ul>
+        </li>
+        <li class="dropdown">
+            <span>📂 Masters</span>
+            <ul class="submenu">
+                <li><a href="accounts_info.php">Accounts Info</a></li>
+                <li><a href="inventory_info.php">Inventory Info</a></li>
+            </ul>
+        </li>
+        <li class="dropdown">
+            <span>💳 Transactions</span>
+            <ul class="submenu">
+                <li><a href="accounting_vouchers.php">Accounting Vouchers</a></li>
+                <li><a href="inventory_vouchers.php">Inventory Vouchers</a></li>
+            </ul>
+        </li>
+        <li class="dropdown">
+            <span>📈 Reports</span>
+            <ul class="submenu">
+                <li><a href="balance_sheet.php">Balance Sheet</a></li>
+                <li><a href="profit_loss.php">Profit & Loss A/C</a></li>
+                <li><a href="trial_balance.php">Trial Balance</a></li>
+            </ul>
+        </li>
+        <li class="dropdown">
+            <span>📊 Display</span>
+            <ul class="submenu">
+                <li><a href="ledgers_view.php">Ledgers View</a></li>
+                <li><a href="receipts_payments.php">Receipts & Payments</a></li>
+            </ul>
+        </li>
+        <li><a href="profile.php">👤 Profile</a></li>
+        <li><a href="logout.php" class="logout">🚪 Logout</a></li>
+    </ul>
+</div>
+
+<!-- Page Content -->
+<div id="content">
+    <nav class="navbar">
+        <button id="openSidebar">☰</button>
+        <h4>Welcome, <?= htmlspecialchars($username); ?>!</h4>
+        <button id="themeToggle">🌙</button>
     </nav>
-
-    <!-- Page Content -->
-    <div id="content">
-        <nav class="navbar navbar-light bg-white shadow">
-            <button type="button" id="sidebarCollapse" class="btn btn-primary">
-                <i class="fas fa-bars"></i>
-            </button>
-            <h4 class="m-0">Welcome, <?= htmlspecialchars($username); ?>!</h4>
-        </nav>
-
-        <div class="container mt-4">
-            <div class="alert alert-info text-center">
-                <h5>Company Head Dashboard</h5>
-                <p>Manage your company’s users, vouchers, transactions, and reports.</p>
-            </div>
-        </div>
+    <div class="container">
+        <h2>Company Head Dashboard</h2>
+        <p>Manage your company’s users, transactions, reports, and settings efficiently.</p>
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-    $(document).ready(function () {
-        $('#sidebarCollapse').on('click', function () {
-            $('#sidebar').toggleClass('active');
-        });
-    });
-</script>
 </body>
 </html>
