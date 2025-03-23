@@ -21,20 +21,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $dob = trim($_POST['dob']);
 
     if (!preg_match('/^\d{8}$/', $dob)) {
-        echo "<script>alert('Invalid Date of Birth format! Use DDMMYYYY.');</script>";
+        echo "<script>alert('Invalid Date of Birth format! Use DDMMYYYY.'); window.history.back();</script>";
         exit();
     }
 
-    // Hash the DOB before storing it as a password
+    // Hash DOB before storing it as a password
     $hashed_password = password_hash($dob, PASSWORD_DEFAULT);
 
     $stmt = $conn->prepare("INSERT INTO users (company_id, username, email, dob, password, role) VALUES (?, ?, ?, ?, ?, ?)");
     $stmt->bind_param("isssss", $company_id, $username, $email, $dob, $hashed_password, $role);
 
     if ($stmt->execute()) {
-        echo "<script>alert('$role created successfully!'); window.location.href='create_roles.php';</script>";
+        echo "<script>alert('$role created successfully!'); window.location.href='dashboard_head.php';</script>";
     } else {
-        echo "<script>alert('Error adding user.');</script>";
+        echo "<script>alert('Error adding user. Please try again.');</script>";
     }
     $stmt->close();
 }
@@ -46,49 +46,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Roles</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="reg_styles.css"> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
+    <!-- Ensure this matches your design -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
-<body class="d-flex align-items-center justify-content-center vh-100 bg-light">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-5">
-                <div class="card shadow-lg">
-                    <div class="card-body">
-                        <h3 class="text-center mb-3">Create User Role</h3>
-                        <form method="POST">
-                            <div class="mb-3">
-                                <label class="form-label">Username:</label>
-                                <input type="text" name="username" class="form-control" required>
-                            </div>
+<body>
+    <div class="form-container">
+        <h2>Create User Role</h2>
+            <form method="POST">
+                        <div class="form-group">
+                                <label><i class="fa-solid fa-user"></i> Username:</label>
+                                <input type="text" name="username" required>
+                        </div>
 
-                            <div class="mb-3">
-                                <label class="form-label">Email:</label>
-                                <input type="email" name="email" class="form-control" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Date of Birth (DDMMYYYY):</label>
-                                <input type="text" name="dob" class="form-control" required placeholder="DDMMYYYY" maxlength="8">
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Role:</label>
-                                <select name="role" class="form-select" required>
+                        <div class="form-group">
+                                <label><i class="fa-solid fa-envelope"></i> Email:</label>
+                                <input type="email" name="email" required>
+                        </div>
+                        
+                        <div class="form-group">
+                                <label><i class="fa-solid fa-calendar"></i> Date of Birth (DDMMYYYY):</label>
+                                <input type="text" name="dob" required placeholder="DDMMYYYY" maxlength="8">
+                        </div>
+             
+                        <div class="form-group">
+                                <label><i class="fa-solid fa-map-marker-alt"></i> Role:</label>
+                                <select name="role" required>
+                                    <option value=""></option>
                                     <option value="Accountant">Accountant</option>
                                     <option value="Manager">Manager</option>
                                 </select>
-                            </div>
+                        </div>
 
-                            <button type="submit" class="btn btn-primary w-100">Create User</button>
-                        </form>
-
+                        <button type="submit">Create Role <i class="fa-solid fa-check"></i></button>
+                        
                         <p class="text-center mt-3">
-                            <a href="../dashboard_head.php">Back to Dashboard</a>
+                            <a href="dashboard_head.php">Back to Dashboard</a>
                         </p>
-                    </div>
-                </div>
-            </div>
-        </div>
+            </form>
     </div>
 </body>
 </html>
