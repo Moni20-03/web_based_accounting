@@ -9,6 +9,16 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Company Head') {
 }
 
 $username = $_SESSION['username'];
+$company_id = $_SESSION['company_id'];
+
+$company_result = $conn->query("SELECT company_name FROM companies WHERE company_id = $company_id");
+
+// Fetch the row as an associative array
+$company_row = $company_result->fetch_assoc();
+
+// Extract the company name
+$company_name = $company_row['company_name'];
+
 ?>
 
 <!DOCTYPE html>
@@ -249,7 +259,7 @@ body {
   <div class="sidebar">
     <div class="logo">
       <i class="fas fa-rocket"></i>
-      <span>Dashboard</span>
+      <span><?php echo $company_name?> - Dashboard</span>
     </div>
     <ul class="menu">
       <li>
@@ -272,7 +282,7 @@ body {
           <i class="fas fa-chevron-down"></i>
         </a>
         <ul class = "submenu">
-            <li><a href="create_group.php"><i class="fas fa-folder-plus"></i>Create</a></li> 
+            <li><a href="create_ledger.php"><i class="fas fa-folder-plus"></i>Create</a></li> 
             <li><a href="search_group.php"><i class="fas fa-list"></i>Manage</a></li> 
         </ul>
       </li>
@@ -285,8 +295,8 @@ body {
           <i class="fas fa-chevron-down"></i>
         </a>
         <ul class = "submenu">
-            <li><a href="create_group.php"><i class="fas fa-folder-plus"></i>Create</a></li> 
-            <li><a href="search_group.php"><i class="fas fa-list"></i>Manage</a></li> 
+            <li><a href="create_voucher.php"><i class="fas fa-folder-plus"></i>Payment/Receipts</a></li> 
+            <li><a href="create_sales_purchase.php"><i class="fas fa-list"></i>Sales/Purchase</a></li> 
         </ul>
       </li>
 

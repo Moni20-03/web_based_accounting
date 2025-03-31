@@ -7,6 +7,7 @@ if (!isset($_GET['company_id'])) {
 }
 
 $company_id = $_GET['company_id'];
+$_SESSION['company_id'] = $company_id;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $head_username = trim($_POST['head_username']);
@@ -29,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $stmt->bind_param("issss", $company_id, $head_username, $head_email, $head_dob, $hashed_password);
     
     if ($stmt->execute()) {
+        $_SESSION['role'] = 'Company Head';
         $stmt->close();
         echo json_encode(["status" => "success", "redirect" => "create_roles.php"]);
     } else {

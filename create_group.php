@@ -274,6 +274,7 @@ body {
     </style>
 </head>
 <body>
+    
     <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-header">
