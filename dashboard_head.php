@@ -1,6 +1,5 @@
 <?php
-session_start();
-include 'db_connection.php';
+include 'findb.php';
 
 // Ensure only Company Head can access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Company Head') {
@@ -9,15 +8,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Company Head') {
 }
 
 $username = $_SESSION['username'];
-$company_id = $_SESSION['company_id'];
-
-$company_result = $conn->query("SELECT company_name FROM companies WHERE company_id = $company_id");
-
-// Fetch the row as an associative array
-$company_row = $company_result->fetch_assoc();
-
-// Extract the company name
-$company_name = $company_row['company_name'];
+$company_name = $_SESSION['company_name'];
 
 ?>
 
@@ -29,237 +20,13 @@ $company_name = $company_row['company_name'];
   <title>Dashboard Design</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-/* General Styles */
-body {
-  margin: 0;
-  font-family: 'Poppins', sans-serif;
-  background: linear-gradient(135deg, #1abc9c, #3498db);
-  color: #ffffff;
-  display: flex;
-  min-height: 100vh;
-}
-
-/* Sidebar Styles */
-.sidebar {
-  width: 250px;
-  background: #2c3e50;
-  padding: 20px;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  transition: width 0.3s ease;
-}
-
-.sidebar .logo {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 30px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.sidebar .menu {
-  list-style: none;
-  padding: 0;
-  flex: 1;
-}
-
-.sidebar .menu li {
-  margin: 10px 0;
-}
-
-.sidebar .menu li a {
-  color: #ffffff;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  padding: 10px;
-  border-radius: 5px;
-  transition: background 0.3s ease, padding 0.3s ease;
-}
-
-.sidebar .menu li a:hover {
-  background: #34495e;
-  padding-left: 15px;
-}
-
-.sidebar .menu li a i {
-  margin-right: 10px;
-  font-size: 18px;
-}
-
-.sidebar .menu li a .fa-chevron-down {
-  margin-left: auto;
-  transition: transform 0.3s ease;
-}
-
-.sidebar .menu li.active a .fa-chevron-down {
-  transform: rotate(180deg);
-}
-
-.sidebar .menu li .submenu {
-  list-style: none;
-  padding-left: 20px;
-  margin-top: 5px;
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.5s ease, opacity 0.3s ease;
-  opacity: 0;
-}
-
-.sidebar .menu li.active .submenu {
-  max-height: 200px;
-  opacity: 1;
-}
-
-.sidebar .menu li .submenu li a {
-  padding: 8px 10px;
-  font-size: 14px;
-}
-
-.sidebar .profile {
-  text-align: center;
-  padding: 20px 0;
-  border-top: 1px solid #34495e;
-}
-
-.sidebar .profile img {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  margin-bottom: 10px;
-}
-
-.sidebar .profile div {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-size: 16px;
-}
-
-.sidebar .logout {
-  background: #e74c3c;
-  color: #ffffff;
-  border: none;
-  padding: 10px;
-  border-radius: 5px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  transition: background 0.3s ease;
-}
-
-.sidebar .logout:hover {
-  background: #c0392b;
-}
-
-/* Content Page Styles */
-.content {
-  flex: 1;
-  padding: 20px;
-  background: #ecf0f1;
-  color: #2c3e50;
-  transition: margin-left 0.3s ease;
-}
-
-.content .welcome {
-  font-size: 36px;
-  font-weight: 600;
-  animation: fadeInUp 1s ease-in-out;
-}
-
-.content .cards {
-  display: flex;
-  gap: 20px;
-  margin-top: 20px;
-  flex-wrap: wrap;
-}
-
-.content .card {
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  flex: 1 1 calc(33.333% - 40px);
-  text-align: center;
-}
-
-.content .card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-}
-
-.content .card i {
-  font-size: 36px;
-  margin-bottom: 10px;
-  color: #3498db;
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Responsive Styles */
-@media (max-width: 768px) {
-  .sidebar {
-    width: 60px;
-  }
-
-  .sidebar .logo span,
-  .sidebar .menu li a span,
-  .sidebar .logout span,
-  .sidebar .profile div span {
-    display: none;
-  }
-
-  .sidebar .menu li a i.fa-chevron-down {
-    display: none;
-  }
-
-  .sidebar .menu li .submenu {
-    position: absolute;
-    left: 60px;
-    background: #2c3e50;
-    border-radius: 0 5px 5px 0;
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
-    min-width: 150px;
-    z-index: 1;
-  }
-
-  .sidebar .menu li.active .submenu {
-    max-height: 200px;
-    opacity: 1;
-  }
-
-  .content {
-    margin-left: 60px;
-  }
-
-  .content .cards {
-    flex-direction: column;
-  }
-}
-    </style>
+  <link rel="stylesheet" href="styles/dashboard_styles.css">
 </head>
 <body>
   <div class="sidebar">
     <div class="logo">
       <i class="fas fa-rocket"></i>
-      <span><?php echo $company_name?> - Dashboard</span>
+      <span><?php echo $company_name; ?></span>
     </div>
     <ul class="menu">
       <li>
@@ -283,7 +50,7 @@ body {
         </a>
         <ul class = "submenu">
             <li><a href="create_ledger.php"><i class="fas fa-folder-plus"></i>Create</a></li> 
-            <li><a href="search_group.php"><i class="fas fa-list"></i>Manage</a></li> 
+            <li><a href="search_ledger.php"><i class="fas fa-list"></i>Manage</a></li> 
         </ul>
       </li>
 
@@ -295,7 +62,7 @@ body {
           <i class="fas fa-chevron-down"></i>
         </a>
         <ul class = "submenu">
-            <li><a href="create_voucher.php"><i class="fas fa-folder-plus"></i>Payment/Receipts</a></li> 
+            <li><a href="sample.php"><i class="fas fa-folder-plus"></i>Payment/Receipts</a></li> 
             <li><a href="create_sales_purchase.php"><i class="fas fa-list"></i>Sales/Purchase</a></li> 
         </ul>
       </li>
@@ -313,6 +80,14 @@ body {
         </ul>
       </li>
       
+      <li>
+        <a href="#">
+          <i class="fas fa-user"></i>
+          <span>User Management</span>
+          <i class="fas fa-chevron-down"></i>
+        </a>
+      </li>
+
     </ul>
 
     <div class="profile">
@@ -353,20 +128,20 @@ body {
 
   <script>
    // Toggle submenus on click
-const menuItems = document.querySelectorAll('.sidebar .menu li');
+          const menuItems = document.querySelectorAll('.sidebar .menu li');
 
-menuItems.forEach(item => {
-  item.addEventListener('click', () => {
-    // Close other submenus
-    menuItems.forEach(otherItem => {
-      if (otherItem !== item) {
-        otherItem.classList.remove('active');
-      }
-    });
-    // Toggle current submenu
-    item.classList.toggle('active');
-  });
-});
+          menuItems.forEach(item => {
+            item.addEventListener('click', () => {
+              // Close other submenus
+              menuItems.forEach(otherItem => {
+                if (otherItem !== item) {
+                  otherItem.classList.remove('active');
+                }
+              });
+              // Toggle current submenu
+              item.classList.toggle('active');
+            });
+          });
   </script>
 </body>
 </html>

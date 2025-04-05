@@ -1,6 +1,5 @@
 <?php
-session_start();
-include 'db_connection.php';
+include 'findb.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");

@@ -1,0 +1,90 @@
+:root {
+    --primary-dark: #2c3e50;
+    --primary-light: #3498db;
+    --accent-green: #1abc9c;
+    --accent-orange: #ff7f50;
+    --white: #fff;
+    --light-bg: #f9f9f9;
+    --text-dark: #333;
+    --text-light: #ecf0f1;
+    --success: #2ecc71;
+    --error: #e74c3c;
+}
+
+/* Base Styles */
+body {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--light-bg);
+    color: var(--text-dark);
+    padding-top: 80px; /* Adjusted for navbar height */
+}
+
+/* Navbar Styles */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 5%;
+    background-color: var(--primary-dark);
+    color: var(--white);
+    position: fixed;
+    width: 90%;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand a {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.navbar-brand .logo {
+    height: 50px;
+    margin-left: 10px;
+    margin-right: 10px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.navbar-brand:hover {
+    color: var(--accent-green);
+    transform: scale(1.05);
+}
+
+.nav-links {
+    display: flex;
+    gap: 20px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    align-items: center;
+}
+
+.nav-links a {
+    color: var(--white);
+    text-decoration: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+    font-size: 1.2rem;
+    font-weight: bolder;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-links li:hover {
+    transform: scale(1.07);
+}
+
+.nav-links li:hover a {
+    color: var(--accent-green);
+}

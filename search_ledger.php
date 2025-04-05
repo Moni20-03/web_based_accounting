@@ -1,12 +1,20 @@
 <?php
 include 'findb.php'; // Database connection
 
-// Fetch all groups for this company + predefined groups
-$sql = "SELECT * FROM groups ORDER BY group_name ASC";
+// Fetch all ledgers for this company
+$sql = "SELECT * FROM ledgers ORDER BY ledger_name ASC";
+$stmt = $conn->prepare($sql);
+$stmt->execute();
+$result = $stmt->get_result();
+$ledgers = $result->fetch_all(MYSQLI_ASSOC);
+
+// Fetch all groups for this company
+$sql = "SELECT group_name FROM groups";
 $stmt = $conn->prepare($sql);
 $stmt->execute();
 $result = $stmt->get_result();
 $groups = $result->fetch_all(MYSQLI_ASSOC);
+
 ?>
 
 <!DOCTYPE html>
@@ -14,7 +22,7 @@ $groups = $result->fetch_all(MYSQLI_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Groups</title>
+    <title>Manage Ledgers</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="styles/form_style.css">
     <style>
@@ -236,9 +244,9 @@ $groups = $result->fetch_all(MYSQLI_ASSOC);
 <div class="main-content">
     <div class="groups-container">
         <div class="groups-header">
-            <h2><i class="fas fa-list"></i> Manage Groups</h2>
+            <h2><i class="fas fa-list"></i> Manage Ledgers</h2>
             <div class="search-bar">
-                <input type="text" id="search" class = "search-bar" placeholder="Search groups...">
+                <input type="text" id="search" class = "search-bar" placeholder="Search Ledgers...">
                 <button><i class="fas fa-search"></i></button>
             </div>
         </div>
@@ -246,21 +254,23 @@ $groups = $result->fetch_all(MYSQLI_ASSOC);
             <table class="groups-table" id="groupTable">
             <thead>
                     <tr>
-                        <th>Group Name</th>
-                        <!-- <th>Parent Group</th> -->
-                        <th>Nature</th>
+                        <th>Ledger Name</th>
+                        <th>Under Group</th>
+                        <th>opening Balance</th>
+                        <th> </th>
                         <th style="padding-left:10%;">Actions</th>
                     </tr>
             </thead>
             <tbody id="groupList">
-                    <?php foreach ($groups as $group) { ?>
+                    <?php foreach ($ledgers as $ledger) { ?>
                 <tr>
-                    <td><?= htmlspecialchars($group['group_name']) ?></td>
-                    <!-- <td><?= htmlspecialchars($group['parent_group_id']) ?></td> -->
-                    <td><?= htmlspecialchars($group['nature']) ?></td>
+                    <td><?= htmlspecialchars($ledger['ledger_name']) ?></td>
+                    <td><?= htmlspecialchars($ledger['group_id']) ?></td>
+                    <td><?= htmlspecialchars($ledger['opening_balance']) ?></td>
+                    <td><?= htmlspecialchars($ledger['debit_credit']) ?></td>
                     <td>
-                        <a href="edit_group.php?group_id=<?= $group['group_id']; ?>" class="action-button edit"><i class="fas fa-edit"></i> Edit</a>
-                        <a href="view_group.php?group_id=<?= $group['group_id']; ?>" class="action-button view"><i class="fas fa-eye"></i> View</a>
+                        <a href="edit_ledger.php?ledger_id=<?= $ledger['ledger_id']; ?>" class="action-button edit"><i class="fas fa-edit"></i> Edit</a>
+                        <a href="view_ledger.php?ledger_id=<?= $ledger['ledger_id']; ?>" class="action-button view"><i class="fas fa-eye"></i> View</a>
         
                     </td>
                 </tr>
