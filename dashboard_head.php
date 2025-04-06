@@ -62,8 +62,12 @@ $company_name = $_SESSION['company_name'];
           <i class="fas fa-chevron-down"></i>
         </a>
         <ul class = "submenu">
-            <li><a href="sample.php"><i class="fas fa-folder-plus"></i>Payment/Receipts</a></li> 
-            <li><a href="create_sales_purchase.php"><i class="fas fa-list"></i>Sales/Purchase</a></li> 
+            <li><a href="payment_voucher.php"><i class="fas fa-credit-card"></i>Payment</a></li> 
+            <li><a href="receipt_voucher.php"><i class="fas fa-file-invoice-dollar"></i><span style="margin-left:7px;">Receipt</span></a></li> 
+            <li><a href="contra_voucher.php"><i class="fas fa-random"></i>Contra</a></li> 
+            <li><a href="journal_voucher.php"><i class="fas fa-pen-to-square"></i>Journal</a></li> 
+            <li><a href="sales_voucher.php"><i class="fas fa-tags"></i>Sales</a></li> 
+            <li><a href="purchase_voucher.php"><i class="fas fa-boxes"></i>Purchase</a></li> 
         </ul>
       </li>
 
