@@ -1,5 +1,5 @@
 <?php
-require 'findb.php';
+include 'database/findb.php';
 
 if (isset($_GET['ledger_id'])) {
     $ledger_id = intval($_GET['ledger_id']);

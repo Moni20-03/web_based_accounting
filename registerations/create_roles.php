@@ -1,18 +1,10 @@
 <?php
-session_start();
-include '../db_connection.php';
+include '../database/findb.php';
 
 // Ensure user is logged in and is a Company Head
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Company Head') {
-    die("Unauthorized access.");
-}
-
-// Get company ID from session or URL
-if (!isset($_SESSION['company_id']) && isset($_GET['company_id'])) {
-    $_SESSION['company_id'] = $_GET['company_id'];  // Store company ID in session
-}
-
-$company_id = $_SESSION['company_id'];
+// if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Company Head') {
+//     die("Unauthorized access.");
+// }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $role = trim($_POST['role']);
@@ -28,11 +20,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Hash DOB before storing it as a password
     $hashed_password = password_hash($dob, PASSWORD_DEFAULT);
 
-    $stmt = $conn->prepare("INSERT INTO users (company_id, username, email, dob, password, role) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("isssss", $company_id, $username, $email, $dob, $hashed_password, $role);
+    $stmt = $conn->prepare("INSERT INTO users (username, email, dob, password, role, created_at) VALUES (?, ?, ?, ?, ?,NOW())");
+    $stmt->bind_param("sssss",$username, $email, $dob, $hashed_password, $role);
 
     if ($stmt->execute()) {
-        echo "<script>alert('$role created successfully!'); window.location.href='dashboard_head.php';</script>";
+        echo "<script>alert('$role created successfully!'); window.location.href='../dashboards/dashboard.php';</script>";
     } else {
         echo "<script>alert('Error adding user. Please try again.');</script>";
     }

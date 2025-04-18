@@ -1,9 +1,9 @@
 <?php
-include 'findb.php'; // Database connection
+include '../database/../database/findb.php'; // Database connection
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: ../login.php");
     exit();
 }
 
@@ -104,7 +104,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Group</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="styles/form_style.css">
+    <link rel="stylesheet" href="../styles/form_style.css">
     <style>
         /* Add animation for success message */
         .success-message {
@@ -131,13 +131,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <a href="index.html">
-                <img class="logo" src="images/logo3.png" alt="Logo">
+            <a href="../index.html">
+                <img class="logo" src="../images/logo3.png" alt="Logo">
                 <span>FinPack</span> 
             </a>
         </div>
         <ul class="nav-links">
-            <li><a href="dashboard.php">
+            <li><a href="../dashboards/dashboard.php">
                 <i class="fas fa-tachometer-alt"></i> Dashboard</a>
             </li>
             <li>
@@ -147,7 +147,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </a>
             </li>
             <li>
-                <a href="logout.php" style="color:rgb(235, 71, 53);">
+                <a href="../logout.php" style="color:rgb(235, 71, 53);">
                     <i class="fas fa-sign-out-alt"></i>
                     Logout
                 </a>

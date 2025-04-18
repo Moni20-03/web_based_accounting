@@ -1,9 +1,9 @@
 <?php
-include 'findb.php';
+include '../database/../database/findb.php';
 
 // Ensure only Company Head can access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Company Head') {
-    header("Location: login.php");
+    header("Location: ../login.php");
     exit();
 }
 
@@ -67,7 +67,7 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
   <title>Dashboard Design</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles/dashboard_styles.css">
+  <link rel="stylesheet" href="../styles/dashboard_styles.css">
 </head>
 <body>
   <div class="sidebar">
@@ -83,8 +83,8 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
           <i class="fas fa-chevron-down"></i>
         </a>
         <ul class = "submenu">
-            <li><a href="create_group.php"><i class="fas fa-folder-plus"></i>Create</a></li> 
-            <li><a href="search_group.php"><i class="fas fa-list"></i>Manage</a></li> 
+            <li><a href="../groups_module/create_group.php"><i class="fas fa-folder-plus"></i>Create</a></li> 
+            <li><a href="../groups_module/search_group.php"><i class="fas fa-list"></i>Manage</a></li> 
         </ul>
       </li>
 
@@ -96,9 +96,9 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
           <i class="fas fa-chevron-down"></i>
         </a>
         <ul class = "submenu">
-            <li><a href="create_ledger.php"><i class="fas fa-folder-plus"></i>Create</a></li> 
-            <li><a href="search_ledger.php"><i class="fas fa-list"></i>Manage</a></li> 
-            <li><a href="create_party.php"><i class="fas fa-folder-plus"></i>Add Customer / Supplier</a></li> 
+            <li><a href="../ledger_module/create_ledger.php"><i class="fas fa-folder-plus"></i>Create</a></li> 
+            <li><a href="../ledger_module/search_ledger.php"><i class="fas fa-list"></i>Manage</a></li> 
+            <li><a href="../ledger_module/create_party.php"><i class="fas fa-folder-plus"></i>Add Customer / Supplier</a></li> 
         </ul>
       </li>
 
@@ -110,12 +110,12 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
           <i class="fas fa-chevron-down"></i>
         </a>
         <ul class = "submenu">
-            <li><a href="payment_voucher.php"><i class="fas fa-credit-card"></i>Payment</a></li> 
-            <li><a href="receipt_voucher.php"><i class="fas fa-file-invoice-dollar"></i><span style="margin-left:0px;">Receipt</span></a></li> 
-            <li><a href="contra_voucher.php"><i class="fas fa-random"></i>Contra</a></li> 
-            <li><a href="journal_voucher.php"><i class="fas fa-pen-to-square"></i>Journal</a></li> 
-            <li><a href="sales_voucher.php"><i class="fas fa-tags"></i>Sales</a></li> 
-            <li><a href="purchase_voucher.php"><i class="fas fa-boxes"></i>Purchase</a></li> 
+            <li><a href="../vouchers_module/payment_voucher.php"><i class="fas fa-credit-card"></i>Payment</a></li> 
+            <li><a href="../vouchers_module/receipt_voucher.php"><i class="fas fa-file-invoice-dollar"></i><span style="margin-left:0px;">Receipt</span></a></li> 
+            <li><a href="../vouchers_module/contra_voucher.php"><i class="fas fa-random"></i>Contra</a></li> 
+            <li><a href="../vouchers_module/journal_voucher.php"><i class="fas fa-pen-to-square"></i>Journal</a></li> 
+            <li><a href="../vouchers_module/sales_voucher.php"><i class="fas fa-tags"></i>Sales</a></li> 
+            <li><a href="../vouchers_module/purchase_voucher.php"><i class="fas fa-boxes"></i>Purchase</a></li> 
         </ul>
       </li>
 
@@ -127,8 +127,8 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
           <i class="fas fa-chevron-down"></i>
         </a>
         <ul class = "submenu">
-            <li><a href="trial_balance.php"><i class="fas fa-balance-scale"></i> Trial Balance</a></li> 
-            <li><a href="profit_balance.php"><i class="fas fa-chart-line"></i> Profit & Loss</a></li> 
+            <li><a href="../reports/trial_balance.php"><i class="fas fa-balance-scale"></i> Trial Balance</a></li> 
+            <li><a href="../reports/profit_loss.php"><i class="fas fa-chart-line"></i> Profit & Loss</a></li> 
         </ul>
       </li>
       
@@ -149,7 +149,7 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
         <span><?php echo $username ?></span>
       </div>
       <span> <br> </span>
-    <button class="logout" onclick= "window.location.href='logout.php'">
+    <button class="logout" onclick= "window.location.href='../logout.php'">
       <i class="fas fa-sign-out-alt"></i>
       <span>Logout</span>
     </button>
@@ -205,11 +205,11 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
   <div class="section">
     <h3>Quick Shortcuts</h3>
     <div class="shortcut-buttons">
-      <a href="create_ledger.php" class="shortcut-btn"><i class="fas fa-folder-plus"></i> Ledgers</a>
-      <a href="payment_voucher.php" class="shortcut-btn"><i class="fas fa-credit-card"></i> Payment</a>
-      <a href="receipt_voucher.php" class="shortcut-btn"><i class="fas fa-file-invoice-dollar"></i> Receipt</a>
-      <a href="journal_voucher.php" class="shortcut-btn"><i class="fas fa-pen-to-square"></i> Journal</a>
-      <a href="contra_voucher.php" class="shortcut-btn"><i class="fas fa-random"></i> Contra</a>
+      <a href="../ledger_module/create_ledger.php" class="shortcut-btn"><i class="fas fa-folder-plus"></i> Ledgers</a>
+      <a href="../vouchers_module/payment_voucher.php" class="shortcut-btn"><i class="fas fa-credit-card"></i> Payment</a>
+      <a href="../vouchers_module/receipt_voucher.php" class="shortcut-btn"><i class="fas fa-file-invoice-dollar"></i> Receipt</a>
+      <a href="../vouchers_module/journal_voucher.php" class="shortcut-btn"><i class="fas fa-pen-to-square"></i> Journal</a>
+      <a href="../vouchers_module/contra_voucher.php" class="shortcut-btn"><i class="fas fa-random"></i> Contra</a>
     </div>
   </div>
 </div>

@@ -1,10 +1,19 @@
 <?php 
-include 'findb.php'; 
-$user_id = $_SESSION['user_id'] ?? 0;
-$errors = [];
-$success = '';
+include '../database/findb.php'; 
 
-// Handle JavaScript validation errors
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
+// require_once 'form_handling.php';
+$user_id = $_SESSION['user_id'] ?? 0;
+$company_db = $_SESSION['company_name'];
+$errors = [];
+$successMessage = '';
+if (isset($_GET['success']) && $_GET['success'] == '1') {
+    $successMessage = "Purchase voucher created successfully!";
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['js_validation_errors'])) {
     $js_errors = json_decode($_POST['js_validation_errors'], true);
     if (is_array($js_errors)) {
@@ -14,36 +23,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['js_validation_errors']
 
 $display_date = date('d-M-Y');
 
-// Auto-generate voucher number
-$result = $conn->query("SELECT MAX(CAST(SUBSTRING(voucher_number, 2) AS UNSIGNED)) as last_num 
+// Auto-generate Purchase Voucher number (prefix PU)
+$result = $conn->query("SELECT MAX(CAST(SUBSTRING(voucher_number, 3) AS UNSIGNED)) as last_num 
           FROM vouchers 
-          WHERE voucher_type = 'Payment' 
-          AND voucher_number LIKE 'P%'");
+          WHERE voucher_type = 'Purchase' 
+          AND voucher_number LIKE 'PU%'");
 $row = $result->fetch_assoc();
 $nextNum = $row['last_num'] ? $row['last_num'] + 1 : 1;
-$voucherNumber = 'P' . $nextNum;
+$voucherNumber = 'PU' . $nextNum;
 
-// Get all ledgers for dropdowns
+// Get all ledgers
 $ledgers = $conn->query("SELECT * FROM ledgers ORDER BY ledger_name ASC");
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
     $voucher_number = trim($_POST['voucher_number']);
     $voucher_date = $_POST['voucher_date'];
-    $credit_ledger_id = $_POST['credit_ledger_id'];
     $mode_of_payment = $_POST['mode_of_payment'];
     $reference_number = $_POST['reference_number'] ?? null;
-    $narration = $_POST['narration'] ?? null;
-    $voucher_type = 'Payment';
+    $narration = $_POST['debit_narration'] ?? [];
+    $voucher_type = 'Purchase';
 
-    $debit_ledgers = $_POST['debit_ledger_id'] ?? [];
+    if ($mode_of_payment === 'Credit') {
+        $credit_ledger_id = $_POST['party_ledger_id'] ?? null;
+    } else {
+        $credit_ledger_id = $_POST['cashbank_ledger_id'] ?? null;
+    }
+
+    $debit_ledgers = $_POST['debit_ledger_id'] ?? []; // Purchase-related ledgers
     $debit_amounts = $_POST['debit_amount'] ?? [];
 
-    // === Basic Validation ===
     if (empty($voucher_number)) $errors[] = "Voucher number missing.";
     if (empty($voucher_date)) $errors[] = "Date is required.";
-    if (empty($credit_ledger_id)) $errors[] = "Please select credit (Cash/Bank) account.";
+    if (empty($credit_ledger_id)) $errors[] = "Please select a party/cash/bank account.";
 
-    if (count($debit_ledgers) == 0) $errors[] = "Please add at least one debit entry.";
+    if (count($debit_ledgers) == 0) $errors[] = "Please add at least one purchase ledger entry.";
 
     $total_amount = 0;
     foreach ($debit_ledgers as $index => $ledger_id) {
@@ -53,7 +66,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
         $total_amount += (float)$debit_amounts[$index];
 
         if ($ledger_id == $credit_ledger_id) {
-            $errors[] = "Credit and Debit ledger cannot be the same.";
+            $errors[] = "Purchase and Credit ledger cannot be the same.";
         }
     }
 
@@ -61,37 +74,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
         $conn->begin_transaction();
 
         try {
-            // === Insert Voucher ===
-            $stmt = $conn->prepare("INSERT INTO vouchers (user_id, voucher_number, reference_number, voucher_type, voucher_date, total_amount, narration) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("issssds", $user_id, $voucher_number, $reference_number, $voucher_type, $voucher_date, $total_amount, $narration);
+            // Insert Voucher
+            $stmt = $conn->prepare("INSERT INTO vouchers (user_id, voucher_number, reference_number, voucher_type, voucher_date, total_amount) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("issssd", $user_id, $voucher_number, $reference_number, $voucher_type, $voucher_date, $total_amount);
             $stmt->execute();
             $voucher_id = $stmt->insert_id;
             $stmt->close();
 
-            // === Insert Credit Entry ===
-            $credit_stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
-            $credit_stmt->bind_param("i", $credit_ledger_id);
-            $credit_stmt->execute();
-            $credit_stmt->bind_result($acc_code, $cur_bal, $dc_type);
-            $credit_stmt->fetch();
-            $credit_stmt->close();
+            $narration_summary = "Purchase made to ledger ID: $credit_ledger_id";
 
-            // Update balance logic
-            $new_balance = ($dc_type === 'Credit') ? $cur_bal + $total_amount : $cur_bal - $total_amount;
+                // Credit Entry (Party/Cash/Bank)
+                $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
+                $stmt->bind_param("i", $credit_ledger_id);
+                $stmt->execute();
+                $stmt->bind_result($acc_code, $cur_bal, $dc_type);
+                $stmt->fetch();
+                $stmt->close();
 
-            $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, transaction_date, narration) VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?, ?)");
-            $txn_stmt->bind_param("iiisdssss", $user_id, $voucher_id, $credit_ledger_id, $acc_code, $total_amount, $new_balance, $mode_of_payment, $voucher_date, $narration);
-            $txn_stmt->execute();
-            $txn_stmt->close();
+                $new_balance = ($dc_type === 'Debit') ? $cur_bal - $total_amount : $cur_bal + $total_amount;
 
-            // Update Ledger
+                $opposite_ledger_ids = implode(',', $debit_ledgers);
+
+                $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?,  ?, ?)");
+                $txn_stmt->bind_param("iiisdsssss", $user_id, $voucher_id, $credit_ledger_id, $acc_code, $total_amount, $new_balance, $mode_of_payment, $opposite_ledger_ids, $voucher_date, $narration_summary);
+                $txn_stmt->execute();
+                $txn_stmt->close();
+
+            // Update credit ledger balance
             $update_stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
             $update_stmt->bind_param("di", $new_balance, $credit_ledger_id);
             $update_stmt->execute();
 
-            // === Insert Debit Entries ===
+            // Debit Entries (Purchase Ledgers)
             foreach ($debit_ledgers as $i => $ledger_id) {
                 $amount = (float)$debit_amounts[$i];
+                $nar = (string)$narration[$i] ?? '';
 
                 $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
                 $stmt->bind_param("i", $ledger_id);
@@ -102,34 +119,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
 
                 $new_bal = ($dc_type === 'Debit') ? $cur_bal + $amount : $cur_bal - $amount;
 
-                $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?, ?, ?)");
-                $txn_stmt->bind_param("iiisdssiss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_bal, $mode_of_payment, $credit_ledger_id, $voucher_date, $narration);
+                $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) 
+                VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?, ?, ?)");
+                $txn_stmt->bind_param("iiisdssiss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_bal, $mode_of_payment, $credit_ledger_id, $voucher_date, $nar);
                 $txn_stmt->execute();
                 $txn_stmt->close();
 
-                // Update balance
                 $update_stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
                 $update_stmt->bind_param("di", $new_bal, $ledger_id);
                 $update_stmt->execute();
             }
 
             $conn->commit();
-            $success = "Payment voucher $voucherNumber created successfully!";
-            // Regenerate voucher number for next entry
-            $voucherNumber = 'P' . ($nextNum + 1);
+            $success = "Purchase voucher $voucherNumber created successfully!";
+            $voucherNumber = 'PU' . ($nextNum + 1);
+            header("Location: purchase_voucher.php?success=1");
+            exit;
+
         } catch (Exception $e) {
             $conn->rollback();
             $errors[] = "Error: " . $e->getMessage();
         }
     }
+
+    if (empty($errors)) 
+    {
+        redirectAfterSubmission('../dashboards/dashboard.php');
+    }
 }
 ?>
+
+
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Payment Voucher - FINPACK</title>
-    <link rel="stylesheet" href="styles/form_style.css">
+    <title>Purchase Voucher - FINPACK</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="../styles/form_style.css">
     <link rel="stylesheet" href="styles/navbar_style.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
@@ -329,13 +358,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <a href="index.html">
-                <img class="logo" src="images/logo3.png" alt="Logo">
+            <a href="../index.html">
+                <img class="logo" src="../images/logo3.png" alt="Logo">
                 <span>FinPack</span> 
             </a>
         </div>
         <ul class="nav-links">
-            <li><a href="dashboard.php">
+            <li><a href="../dashboards/dashboard.php">
                 <i class="fas fa-tachometer-alt"></i> Dashboard</a>
             </li>
             <li>
@@ -345,7 +374,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
                 </a>
             </li>
             <li>
-                <a href="logout.php" style="color:rgb(235, 71, 53);">
+                <a href="../logout.php" style="color:rgb(235, 71, 53);">
                     <i class="fas fa-sign-out-alt"></i>
                     Logout
                 </a>
@@ -355,7 +384,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
 
 <div class="voucher-container tally-style">
     <div class="voucher-header">
-        <h2>Payment Voucher</h2>
+        <h2>Purchase Voucher</h2>
+        <h3><?php echo $company_db ?></h3>
         <div class="current-date"><?= $display_date ?></div>
     </div>
 
@@ -367,17 +397,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
         </div>
     <?php endif; ?>
 
-    <?php if (!empty($success)): ?>
-        <div class="success">
-            <p><?= $success ?></p>
-        </div>
+    <?php if (!empty($successMessage)) : ?>
+    <div id="successMessage" style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+        <?= htmlspecialchars($successMessage) ?>
+    </div>
+    <script>
+        // Auto-hide the success message after 4 seconds
+        setTimeout(function() {
+            const msg = document.getElementById('successMessage');
+            if (msg) {
+                msg.style.transition = 'opacity 0.5s ease-out';
+                msg.style.opacity = '0';
+                setTimeout(() => msg.remove(), 300); // remove from DOM
+            }
+        }, 4000);
+    </script>
     <?php endif; ?>
 
-    <form method="POST" onsubmit="return validateForm()" class="voucher-form">
+    <form id="myForm" method="POST" onsubmit="return validateForm()" class="voucher-form" id = "PurchaseVoucherform" autocomplete="off">
         <div class="form-row">
             <div class="form-group">
                 <label>Voucher No:</label>
-                <input class="form-control" type="text" name="voucher_number" value="<?= htmlspecialchars($voucherNumber) ?>" readonly>
+                <input class="form-control" type="text" name="voucher_number"  value="<?= htmlspecialchars($voucherNumber) ?>" readonly>
             </div>
             <div class="form-group">
                 <label>Date:</label>
@@ -385,103 +426,149 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
             </div>
         </div>
 
-        <input type="hidden" name="voucher_type" value="Payment">
+        <input type="hidden" name="voucher_type" value="Sales">
 
         <div class="form-row">
-            <div class="form-group">
-                <label>Paid From (Cash/Bank Account):</label>
-                <select name="credit_ledger_id" id="credit_ledger" class="form-control" onchange="updateDebitLedgers(); fetchBalance(this, 'credit_balance')" required>
-                    <option value="">--Select--</option>
-                    <?php foreach ($ledgers as $ledger): ?>
-                        <?php if ($ledger['book_type'] === 'Cash' || $ledger['book_type'] === 'Bank'): ?> 
-                            <option value="<?= $ledger['ledger_id'] ?>" 
-                                <?= (isset($_POST['credit_ledger_id']) && $_POST['credit_ledger_id'] == $ledger['ledger_id']) ? 'selected' : '' ?>>
-                                <?= $ledger['ledger_name'] ?>
-                            </option>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-                </select>
-                <div id="credit_balance" class="balance-box"></div>
-            </div>
-            
-            <!-- <div class="form-row"> -->
-                <div class="form-group">
-                    <label>Mode of Payment:</label>
-                    <select name="mode_of_payment" id="mode_of_payment" class="form-control" onchange="toggleRefFields(this.value)">
-                        <option value="Cash">Cash</option>
-                        <option value="Cheque">Cheque</option>
-                    </select>
-                </div>
-            <!-- </div> -->
-            
-        </div>
-        <div id="refFields" style="display:none;">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Cheque No / Ref No:</label>
-                    <input type="text" name="reference_number" class="form-control" style="width: 70%;">
-                </div>
-                <div class="form-group">
-                    <label>Reference Date:</label>
-                    <input type="date" name="reference_date" class="form-control" style="width: 70%;">
-                </div>
-                <div class="form-group">
-                    <label>Bank Name:</label>
-                    <input type="text" name="bank_name" class="form-control" style="width: 70%;">
-                </div>
-            </div>
-        </div>
-
-        <div class="form-group">
-
-            <h4>Payment Details</h4>
-            <table id="debitTable" style="margin-top:0px;">
-                <thead>
-                    <tr>
-                        <th width="45%">Ledger Account</th>
-                        <th width="25%">Amount</th>
-                        <th width="25%">Narration</th>
-                        <th width="5%">Action</th>
-                    </tr>
-                </thead>
-            <tbody>
-                <tr>
-                    <td>
-                        <select name="debit_ledger_id[]" class="form-control" onchange="fetchBalance(this, 'debit_balance_0')" required>
-                            <option value="">--Select--</option>
-                            <?php 
-                            $credit_ledger_id = $_POST['credit_ledger_id'] ?? 0;
-                            foreach ($ledgers as $ledger): 
-                                if (in_array($ledger['acc_type'], ['Expense', 'Asset']) && $ledger['ledger_id'] != $credit_ledger_id): 
-                                    ?>
-                                <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
-                                <?php endif; endforeach; ?>
-                            </select>
-                            <div id="debit_balance_0" class="balance-box"></div>
-                    </td>
-                    <td><input type="number" name="debit_amount[]" class="form-control" step="0.01" min="0.01" required></td>
-                    <td><input type="text" name="debit_narration[]" class="form-control"></td>
-                    <td>
-                        <button type="button" class="btn btn-outline-danger" onclick="this.closest('tr').remove()">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <button type="button" class="submit-button" style="width:20%;margin-left:320px;" onclick="addRow()">
-            <i class="bi bi-plus-circle"></i> Add Row
-        </button>
+    <!-- Supplier Ledger for Credit Purchase -->
+    <div class="form-group" id="creditPartySection">
+        <label>Supplier Ledger (Sundry Creditors):</label>
+        <select name="party_ledger_id" id="party_ledger" class="form-control" onchange="fetchBalance(this, 'party_balance');updateDebitLedgers()">
+            <option value="" disabled selected>--Select Supplier--</option>
+            <?php foreach ($ledgers as $ledger): ?>
+                <?php if ($ledger['group_id'] === '24'): ?> <!-- 24 = Sundry Creditors -->
+                    <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
+                <?php endif; ?>
+            <?php endforeach; ?>
+        </select>
+        <div id="party_balance" class="balance-box"></div>
     </div>
 
-        <button class="submit-button" style="width:40%;margin-left:230px;" type="submit">
-            <i class="bi bi-save"></i> Save Voucher
-        </button>
+    <!-- Cash/Bank Ledger for Cash/Bank Purchase -->
+    <div class="form-group" id="cashBankSection" style="display:none;">
+        <label>Paid From (Cash/Bank Ledger):</label>
+        <select name="cashbank_ledger_id" id="cashbank_ledger" class="form-control" onchange="fetchBalance(this, 'cashbank_balance');updateDebitLedgers();">
+            <option value="">--Select Ledger--</option>
+            <?php foreach ($ledgers as $ledger): ?>
+                <?php if (($ledger['acc_type'] === 'Asset') && ($ledger['book_type'] === 'Cash' || $ledger['book_type'] === 'Bank')):?>
+                    <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
+                <?php endif; ?>
+            <?php endforeach; ?>
+        </select>
+        <div id="cashbank_balance" class="balance-box"></div>
+    </div>
+
+    <!-- Mode of Sale -->
+    <div class="form-group">
+    <label>Mode of Sale:</label>
+    <select name="mode_of_payment" id="mode_of_payment" class="form-control" onchange="toggleLedgerFields(this.value)">
+        <option value="Credit">Credit</option>
+        <option value="Cash">Cash</option>
+        <option value="Bank">Bank</option>
+        <option value="Cheque">Cheque</option>
+    </select>
+    </div>
+</div>
+
+<!-- Reference Section -->
+<div id="refFields" style="display:none;">
+    <div class="form-row">
+        <div class="form-group">
+            <label>Invoice No / Ref No:</label>
+            <input type="text" name="reference_number" class="form-control" style="width: 70%;">
+        </div>
+        <div class="form-group">
+            <label>Reference Date:</label>
+            <input type="date" name="reference_date" class="form-control" style="width: 70%;">
+        </div>
+        <div class="form-group">
+            <label>Bank Name:</label>
+            <input type="text" name="bank_name" class="form-control" style="width: 70%;">
+        </div>
+    </div>
+</div>
+
+<!-- Sales Ledger Section -->
+<div class="form-group">
+    <h4>Purchase Details</h4>
+    <table id="debitTable" style="margin-top:0px;">
+        <thead>
+            <tr>
+                <th width="45%">Purchase Ledger (Expense A/c)</th>
+                <th width="25%">Amount</th>
+                <th width="25%">Narration</th>
+                <th width="5%">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <select name="debit_ledger_id[]" class="form-control" onchange="fetchBalance(this, 'debit_balance_0')" required>
+                        <option value="">--Select--</option>
+                        <?php 
+                            $party_ledger_id = $_POST['party_ledger_id'] ?? 0;
+                            $cashbank_ledger_id = $_POST['cashbank_ledger_id'] ?? 0;
+
+                            foreach ($ledgers as $ledger): 
+                                if (
+                                    ($ledger['acc_type'] === 'Expense' || ($ledger['acc_type'] === 'Asset' && !in_array($ledger['book_type'], ['Cash', 'Bank']))) &&
+                                    $ledger['ledger_id'] != $party_ledger_id
+                                ):
+                                
+                            ?>
+                                <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
+                            <?php 
+                                endif; 
+                            endforeach; 
+                            ?>
+                    </select>
+                    <div id="debit_balance_0" class="balance-box"></div>
+                </td>
+                <td><input type="number" name="debit_amount[]" class="form-control" step="0.01" min="0.01" required></td>
+                <td><input type="text" name="debit_narration[]" class="form-control"></td>
+                <td>
+                    <button type="button" class="btn btn-outline-danger" onclick="this.closest('tr').remove()">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        </tbody>  
+    </table>
+
+    <button type="button" class="submit-button" style="width:20%;margin-left:320px;" onclick="addRow()">
+        <i class="bi bi-plus-circle"></i> Add Row
+    </button>
+
+    <button class="submit-button" style="width:40%;margin-left:230px;" type="submit">
+    <i class="bi bi-save"></i> Save Voucher
+    </button>
+</div>
     </form>
+
+    <?php
+    // Add confirmation dialog
+    // confirmSubmission('myForm');
+    
+    // Add cache prevention and back-button handling
+    // preventCacheAndBackButton();
+    ?>
+
 </div>
 
 <script>
+
+function toggleLedgerFields(mode) {
+    const partySection = document.getElementById('creditPartySection');
+    const cashBankSection = document.getElementById('cashBankSection');
+
+    if (mode === 'Credit') {
+        partySection.style.display = 'block';
+        cashBankSection.style.display = 'none';
+    } else {
+        partySection.style.display = 'none';
+        cashBankSection.style.display = 'block';
+    }
+}
+
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     updateDebitLedgers();
@@ -512,8 +599,10 @@ function addRow() {
     updateDebitLedgers();
 }
 
+
 function updateDebitLedgers() {
-    const creditLedgerId = document.getElementById('credit_ledger').value;
+    const creditLedgerId = document.getElementById('cashbank_ledger').value;
+    // const creditLedgerId = document.getElementById('cashbank_ledger').value;
     const debitSelects = document.querySelectorAll('select[name="debit_ledger_id[]"]');
     
     debitSelects.forEach(select => {
@@ -554,7 +643,7 @@ function fetchBalance(selectEl, targetId) {
 
     if (!ledgerId || !displayBox) return;
 
-    fetch(`get_ledger_balance.php?ledger_id=${ledgerId}`)
+    fetch(`../get_ledger_balance.php?ledger_id=${ledgerId}`)
         .then(res => res.json())
         .then(data => {
             if (data.success) {
@@ -644,6 +733,15 @@ function validateForm() {
     
     return true;
 }
+
+window.addEventListener("load", function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("success") === "1") {
+        document.getElementById("PurchaseVoucherform")?.reset();
+        // You can also manually clear dropdowns, date pickers, etc.
+    }
+});
+
 </script>
 
 </body>

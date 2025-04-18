@@ -1,8 +1,17 @@
 <?php
-include 'findb.php';
+include '../database/findb.php';
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
 $user_id = $_SESSION['user_id'] ?? 0;
+$company_db = $_SESSION['company_name'];
+
 $errors = [];
-$success = '';
+$successMessage = '';
+if (isset($_GET['success']) && $_GET['success'] == '1') {
+    $successMessage = "Journal voucher created successfully!";
+}
 $display_date = date('d-M-Y');
 
 // Auto-generate voucher number
@@ -14,7 +23,7 @@ $nextNum = $row['last_num'] ? $row['last_num'] + 1 : 1;
 $voucherNumber = 'J' . $nextNum;
 
 // Get all ledgers (Cash/Bank)
-$ledgers = $conn->query("SELECT * FROM ledgers WHERE book_type NOT IN ('Cash', 'Bank')");
+$ledgers = $conn->query("SELECT * FROM ledgers");
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $voucher_number = trim($_POST['voucher_number']);
@@ -71,10 +80,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $voucher_id = $stmt->insert_id;
             $stmt->close();
 
+            $opposite_ledger_ids = implode(',', $credit_ledger_ids);
+
             // Handle DEBIT entries
             foreach ($debit_ledger_ids as $i => $ledger_id) {
                 $amount = (float)$debit_amounts[$i];
-                $narration = trim($debit_narrations[$i]);
+                $narration = (string)($debit_narrations[$i]);
 
                 $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
                 $stmt->bind_param("i", $ledger_id);
@@ -85,8 +96,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                 $new_balance = ($dc == 'Debit') ? $balance + $amount : $balance - $amount;
 
-                $stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, transaction_date, narration) VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?)");
-                $stmt->bind_param("iiisdsss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_balance, $voucher_date, $narration);
+                $stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, opposite_ledger, transaction_date, narration) VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?, ?)");
+                $stmt->bind_param("iiisdssss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_balance, $opposite_ledger_ids, $voucher_date, $narration);
                 $stmt->execute();
                 $stmt->close();
 
@@ -99,7 +110,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Handle CREDIT entries
             foreach ($credit_ledger_ids as $i => $ledger_id) {
                 $amount = (float)$credit_amounts[$i];
-                $narration = trim($credit_narrations[$i]);
+                $nar = trim($credit_narrations[$i]);
+
+                $opp_ledger_ids = implode(',', $debit_ledger_ids);
 
                 $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
                 $stmt->bind_param("i", $ledger_id);
@@ -110,8 +123,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                 $new_balance = ($dc == 'Debit') ? $balance - $amount : $balance + $amount;
 
-                $stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, transaction_date, narration) VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?)");
-                $stmt->bind_param("iiisdsss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_balance, $voucher_date, $narration);
+                $stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, opposite_ledger, transaction_date, narration) VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?, ?)");
+                $stmt->bind_param("iiisdssss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_balance, $opp_ledger_ids ,$voucher_date, $nar);
                 $stmt->execute();
                 $stmt->close();
 
@@ -125,6 +138,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $success = "Journal Voucher $voucher_number created successfully!";
             $voucherNumber = 'J' . ($nextNum + 1);
 
+            header("Location: journal_voucher.php?success=1");
+            exit;
         } catch (Exception $e) {
             $conn->rollback();
             $errors[] = "Transaction failed: " . $e->getMessage();
@@ -136,8 +151,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Receipt Voucher - FINPACK</title>
-    <link rel="stylesheet" href="styles/form_style.css">
+    <title>Journal Voucher - FINPACK</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="../styles/form_style.css">
     <link rel="stylesheet" href="styles/navbar_style.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
@@ -279,13 +297,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <a href="index.html">
-                <img class="logo" src="images/logo3.png" alt="Logo">
+            <a href="../index.html">
+                <img class="logo" src="../images/logo3.png" alt="Logo">
                 <span>FinPack</span> 
             </a>
         </div>
         <ul class="nav-links">
-            <li><a href="dashboard.php">
+            <li><a href="../dashboards/dashboard.php">
                 <i class="fas fa-tachometer-alt"></i> Dashboard</a>
             </li>
             <li>
@@ -295,7 +313,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </a>
             </li>
             <li>
-                <a href="logout.php" style="color:rgb(235, 71, 53);">
+                <a href="../logout.php" style="color:rgb(235, 71, 53);">
                     <i class="fas fa-sign-out-alt"></i>
                     Logout
                 </a>
@@ -306,6 +324,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="voucher-container tally-style">
     <div class="voucher-header">
         <h2>Journal Voucher</h2>
+        <h3><?php echo $company_db ?></h3>
         <div class="current-date"><?= $display_date ?></div>
     </div>
 
@@ -317,13 +336,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     <?php endif; ?>
 
-    <?php if (!empty($success)): ?>
-        <div class="success">
-            <p><?= $success ?></p>
-        </div>
+    <?php if (!empty($successMessage)) : ?>
+    <div id="successMessage" style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+        <?= htmlspecialchars($successMessage) ?>
+    </div>
+    <script>
+        // Auto-hide the success message after 4 seconds
+        setTimeout(function() {
+            const msg = document.getElementById('successMessage');
+            if (msg) {
+                msg.style.transition = 'opacity 0.5s ease-out';
+                msg.style.opacity = '0';
+                setTimeout(() => msg.remove(), 300); // remove from DOM
+            }
+        }, 4000);
+    </script>
     <?php endif; ?>
 
-    <form method="POST" onsubmit="return validateForm()" class="voucher-form">
+    <form method="POST" id = "JournalVoucherForm" onsubmit="return validateForm()" class="voucher-form" autocomplete="off">
     <div class="form-row">
         <div class="form-group">
             <label>Voucher No:</label>
@@ -336,9 +366,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 
     <input type="hidden" name="voucher_type" value="Contra">
-
-
-       <!-- Voucher No and Date (keep your existing code here) -->
 
 <!-- BY (Debit) Section -->
 <div class="form-group">
@@ -358,14 +385,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <select name="debit_ledger_id[]" class="form-control" onchange="fetchBalance(this, 'debit_balance_0');filterToLedgers(this.value)" required>
                         <option value="">--Select--</option>
                         <?php foreach ($ledgers as $ledger): ?>
-                            <?php if (!in_array($ledger['group_name'], ['Cash', 'Bank'])): ?>
+                            <?php if (in_array($ledger['acc_type'], ['Asset','Expense']) && !in_array($ledger['book_type'],['Cash','Bank'])): ?>
                                 <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
                             <?php endif; ?>
                         <?php endforeach; ?>
                     </select>
                     <div id="debit_balance_0" class="balance-box"></div>
                 </td>
-                <td><input type="number" name="debit_amount[]" class="form-control"oninput="autoFillCreditAmount()" step="0.01" min="0.01" required></td>
+                <td><input type="number" name="debit_amount[]" class="form-control" oninput="autoFillCreditAmount()" step="0.01" min="0.01" required></td>
                 <td><input type="text" name="debit_narration[]" class="form-control"></td>
                 <td>
                     <button type="button" class="btn btn-outline-danger" onclick="this.closest('tr').remove()">
@@ -398,7 +425,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <select name="credit_ledger_id[]" class="form-control credit-ledger-select" onchange="fetchBalance(this, 'credit_balance_0')" required>
                         <option value="">--Select--</option>
                         <?php foreach ($ledgers as $ledger): ?>
-                            <?php if (!in_array($ledger['group_name'], ['Cash', 'Bank'])): ?>
+                            <?php if (in_array($ledger['acc_type'], ['Income', 'Liability'])): ?>
                                 <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
                             <?php endif; ?>
                         <?php endforeach; ?>
@@ -448,7 +475,9 @@ function addDebitRow() {
             <select name="debit_ledger_id[]" class="form-control debit-ledger-select" onchange="fetchBalance(this, 'debit_balance_${debitRowCount}'); filterToLedgers(this.value)">
                 <option value="">--Select--</option>
                 <?php foreach ($ledgers as $ledger): ?>
-                    <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
+                            <?php if (in_array($ledger['acc_type'], ['Asset','Expense']) && !in_array($ledger['book_type'],['Cash','Bank'])): ?>
+                                <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
+                            <?php endif; ?>
                 <?php endforeach; ?>
             </select>
             <div id="debit_balance_${debitRowCount}" class="balance-box"></div>
@@ -476,8 +505,10 @@ function addCreditRow() {
             <select name="credit_ledger_id[]" class="form-control credit-ledger-select" onchange="fetchBalance(this, 'credit_balance_${creditRowCount}')">
                 <option value="">--Select--</option>
                 <?php foreach ($ledgers as $ledger): ?>
-                    <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
-                <?php endforeach; ?>
+                            <?php if (in_array($ledger['acc_type'], ['Income', 'Liability'])): ?>
+                                <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
             </select>
             <div id="credit_balance_${creditRowCount}" class="balance-box"></div>
         </td>
@@ -508,7 +539,7 @@ function fetchBalance(selectElem, balanceBoxId) {
         return;
     }
 
-    fetch(`get_ledger_balance.php?ledger_id=${ledgerId}`)
+    fetch(`../get_ledger_balance.php?ledger_id=${ledgerId}`)
         .then(response => response.json())
         .then(data => {
             const balanceText = `${data.balance} (${data.type})`;
@@ -587,6 +618,15 @@ function validateContraForm() {
 
     return true;
 }
+
+window.addEventListener("load", function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("success") === "1") {
+        document.getElementById("JournalVoucherForm")?.reset();
+        // You can also manually clear dropdowns, date pickers, etc.
+    }
+});
+
 </script>
 </body>
 </html>

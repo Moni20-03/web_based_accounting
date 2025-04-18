@@ -1,20 +1,12 @@
 <?php
-include 'findb.php'; // Database connection
+include '../database/../database/findb.php'; // Database connection
 
-// Fetch all ledgers for this company
-$sql = "SELECT * FROM ledgers ORDER BY ledger_name ASC";
-$stmt = $conn->prepare($sql);
-$stmt->execute();
-$result = $stmt->get_result();
-$ledgers = $result->fetch_all(MYSQLI_ASSOC);
-
-// Fetch all groups for this company
-$sql = "SELECT group_name FROM groups";
+// Fetch all groups for this company + predefined groups
+$sql = "SELECT * FROM groups ORDER BY group_name ASC";
 $stmt = $conn->prepare($sql);
 $stmt->execute();
 $result = $stmt->get_result();
 $groups = $result->fetch_all(MYSQLI_ASSOC);
-
 ?>
 
 <!DOCTYPE html>
@@ -22,9 +14,9 @@ $groups = $result->fetch_all(MYSQLI_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Ledgers</title>
+    <title>Manage Groups</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="styles/form_style.css">
+    <link rel="stylesheet" href="../styles/form_style.css">
     <style>
         /* Main Content Styles */
 .main-content {
@@ -216,13 +208,13 @@ $groups = $result->fetch_all(MYSQLI_ASSOC);
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <a href="index.html">
-                <img class="logo" src="images/logo3.png" alt="Logo">
+            <a href="../index.html">
+                <img class="logo" src="../images/logo3.png" alt="Logo">
                 <span>FinPack</span> 
             </a>
         </div>
         <ul class="nav-links">
-            <li><a href="dashboard.php">
+            <li><a href="../dashboards/dashboard.php">
                 <i class="fas fa-tachometer-alt"></i> Dashboard</a>
             </li>
             <li>
@@ -232,7 +224,7 @@ $groups = $result->fetch_all(MYSQLI_ASSOC);
                 </a>
             </li>
             <li>
-                <a href="logout.php" style="color:rgb(235, 71, 53);">
+                <a href="../logout.php" style="color:rgb(235, 71, 53);">
                     <i class="fas fa-sign-out-alt"></i>
                     Logout
                 </a>
@@ -244,9 +236,9 @@ $groups = $result->fetch_all(MYSQLI_ASSOC);
 <div class="main-content">
     <div class="groups-container">
         <div class="groups-header">
-            <h2><i class="fas fa-list"></i> Manage Ledgers</h2>
+            <h2><i class="fas fa-list"></i> Manage Groups</h2>
             <div class="search-bar">
-                <input type="text" id="search" class = "search-bar" placeholder="Search Ledgers...">
+                <input type="text" id="search" class = "search-bar" placeholder="Search groups...">
                 <button><i class="fas fa-search"></i></button>
             </div>
         </div>
@@ -254,23 +246,21 @@ $groups = $result->fetch_all(MYSQLI_ASSOC);
             <table class="groups-table" id="groupTable">
             <thead>
                     <tr>
-                        <th>Ledger Name</th>
-                        <th>Under Group</th>
-                        <th>opening Balance</th>
-                        <th> </th>
+                        <th>Group Name</th>
+                        <!-- <th>Parent Group</th> -->
+                        <th>Nature</th>
                         <th style="padding-left:10%;">Actions</th>
                     </tr>
             </thead>
             <tbody id="groupList">
-                    <?php foreach ($ledgers as $ledger) { ?>
+                    <?php foreach ($groups as $group) { ?>
                 <tr>
-                    <td><?= htmlspecialchars($ledger['ledger_name']) ?></td>
-                    <td><?= htmlspecialchars($ledger['group_id']) ?></td>
-                    <td><?= htmlspecialchars($ledger['opening_balance']) ?></td>
-                    <td><?= htmlspecialchars($ledger['debit_credit']) ?></td>
+                    <td><?= htmlspecialchars($group['group_name']) ?></td>
+                    <!-- <td><?= htmlspecialchars($group['parent_group_id']) ?></td> -->
+                    <td><?= htmlspecialchars($group['nature']) ?></td>
                     <td>
-                        <a href="edit_ledger.php?ledger_id=<?= $ledger['ledger_id']; ?>" class="action-button edit"><i class="fas fa-edit"></i> Edit</a>
-                        <a href="view_ledger.php?ledger_id=<?= $ledger['ledger_id']; ?>" class="action-button view"><i class="fas fa-eye"></i> View</a>
+                        <a href="edit_group.php?group_id=<?= $group['group_id']; ?>" class="action-button edit"><i class="fas fa-edit"></i> Edit</a>
+                        <a href="view_group.php?group_id=<?= $group['group_id']; ?>" class="action-button view"><i class="fas fa-eye"></i> View</a>
         
                     </td>
                 </tr>

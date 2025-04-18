@@ -1,8 +1,18 @@
 <?php 
-include 'findb.php'; 
+include '../database/findb.php'; 
+
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
+$company_db = $_SESSION['company_name'];
 $user_id = $_SESSION['user_id'] ?? 0;
 $errors = [];
-$success = '';
+
+$successMessage = '';
+if (isset($_GET['success']) && $_GET['success'] == '1') {
+    $successMessage = "Receipt voucher created successfully!";
+}
 
 // Handle JS validation errors
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['js_validation_errors'])) {
@@ -41,12 +51,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
     // These are CREDIT entries — from customers/income/other accounts
     $credit_ledgers = $_POST['credit_ledger_id'] ?? []; 
     $credit_amounts = $_POST['credit_amount'] ?? [];
-    $narrations = $_POST['narration'] ?? [];
+    $narrations = $_POST['credit_narration'] ?? [];
 
-        foreach ($credit_ledgers as $i => $ledger_id) {
-            $amount = (float)$credit_amounts[$i];
-            $narration = $narrations[$i] ?? ''; 
-        }
     // === Basic Validation ===
     if (empty($voucher_number)) $errors[] = "Voucher number missing.";
     if (empty($voucher_date)) $errors[] = "Date is required.";
@@ -82,6 +88,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
             $voucher_id = $stmt->insert_id;
             $stmt->close();
 
+            // === Log Voucher Insert ===
+            $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) VALUES (?, 'vouchers', ?, 'INSERT', NULL, ?)");
+            $new_value = json_encode([
+                'voucher_number' => $voucher_number,
+                'reference_number' => $reference_number,
+                'voucher_type' => $voucher_type,
+                'voucher_date' => $voucher_date,
+                'total_amount' => $total_amount
+            ]);
+            $log_stmt->bind_param("iis", $user_id, $voucher_id, $new_value);
+            $log_stmt->execute();
+            $log_stmt->close();
+
+            $narration_summary = "Receipt made from ledger ID: $debit_ledger_id";
+
             // === Insert Debit Entry for Cash/Bank ===
             $txn_type = 'Debit';
             $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
@@ -91,12 +112,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
             $stmt->fetch();
             $stmt->close();
 
+            $opposite_ledger_ids = implode(',', $credit_ledgers);
+
             $new_balance = ($dc_type === 'Debit') ? $cur_bal + $total_amount : $cur_bal - $total_amount;
 
-            $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, transaction_date, narration) VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?, ?)");
-            $txn_stmt->bind_param("iiisdssss", $user_id, $voucher_id, $debit_ledger_id, $acc_code, $total_amount, $new_balance, $mode_of_payment, $voucher_date, $narration);
+            $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) 
+            VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?, ?, ?)");
+            $txn_stmt->bind_param("iiisdsssss", $user_id, $voucher_id, $debit_ledger_id, $acc_code, $total_amount, $new_balance, $mode_of_payment, $opposite_ledger_ids, $voucher_date, $narration_summary);
             $txn_stmt->execute();
+            $txn_id = $txn_stmt->insert_id;
             $txn_stmt->close();
+
+            // === Log Debit Transaction Insert ===
+            $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) 
+            VALUES (?, 'transactions', ?, 'INSERT', NULL, ?)");
+            $new_value = json_encode([
+                'voucher_id' => $voucher_id,
+                'ledger_id' => $credit_ledger_id,
+                'amount' => $total_amount,
+                'type' => 'Debit',
+                'closing_balance' => $new_balance
+            ]);
+            $log_stmt->bind_param("iis", $user_id, $txn_id, $new_value);
+            $log_stmt->execute();
+            $log_stmt->close();
 
             $update_stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
             $update_stmt->bind_param("di", $new_balance, $debit_ledger_id);
@@ -106,8 +145,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
             foreach ($credit_ledgers as $i => $ledger_id) {
                 $txn_type = 'Credit';
                 $amount = (float)$credit_amounts[$i];
-                
-
+                $narration = (string)$narrations[$i]; 
+        
                 $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
                 $stmt->bind_param("i", $ledger_id);
                 $stmt->execute();
@@ -115,17 +154,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
                 $stmt->fetch();
                 $stmt->close();
 
-                // Correct balance calculation based on txn_type
-                if ($txn_type === 'Debit') {
-                    $new_bal = ($dc_type === 'Debit') ? $cur_bal + $amount : $cur_bal - $amount;
-                } else {
-                    $new_bal = ($dc_type === 'Debit') ? $cur_bal - $amount : $cur_bal + $amount;
-                }
+                $new_bal = ($dc_type === 'Debit') ? $cur_bal - $amount : $cur_bal + $amount;
 
-                $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?, ?, ?)");
-                $txn_stmt->bind_param("iiisdssiss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_bal, $mode_of_payment, $debit_ledger_id, $voucher_date, $narration);
+                $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) 
+                VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?, ?, ?)");
+                $txn_stmt->bind_param("iiisdsssss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_bal, $mode_of_payment, $debit_ledger_id, $voucher_date, $narration);
                 $txn_stmt->execute();
+                $txn_id = $txn_stmt->insert_id;
                 $txn_stmt->close();
+
+                 // === Log Credit Transaction Insert ===
+                 $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) VALUES (?, 'transactions', ?, 'INSERT', NULL, ?)");
+                 $new_value = json_encode([
+                     'voucher_id' => $voucher_id,
+                     'ledger_id' => $ledger_id,
+                     'amount' => $amount,
+                     'type' => 'Credit',
+                     'closing_balance' => $new_bal
+                 ]);
+                 $log_stmt->bind_param("iis", $user_id, $txn_id, $new_value);
+                 $log_stmt->execute();
+                 $log_stmt->close();
 
                 $update_stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
                 $update_stmt->bind_param("di", $new_bal, $ledger_id);
@@ -135,6 +184,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
             $conn->commit();
             $success = "Receipt voucher $voucherNumber created successfully!";
             $voucherNumber = 'R' . ($nextNum + 1);
+
+               // After inserting into DB successfully
+               header("Location: receipt_voucher.php?success=1");
+               exit;
+
         } catch (Exception $e) {
             $conn->rollback();
             $errors[] = "Error: " . $e->getMessage();
@@ -148,7 +202,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
 <html>
 <head>
     <title>Receipt Voucher - FINPACK</title>
-    <link rel="stylesheet" href="styles/form_style.css">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="../styles/form_style.css">
     <link rel="stylesheet" href="styles/navbar_style.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
@@ -290,13 +347,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <a href="index.html">
-                <img class="logo" src="images/logo3.png" alt="Logo">
+            <a href="../index.html">
+                <img class="logo" src="../images/logo3.png" alt="Logo">
                 <span>FinPack</span> 
             </a>
         </div>
         <ul class="nav-links">
-            <li><a href="dashboard.php">
+            <li><a href="../dashboards/dashboard.php">
                 <i class="fas fa-tachometer-alt"></i> Dashboard</a>
             </li>
             <li>
@@ -306,7 +363,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
                 </a>
             </li>
             <li>
-                <a href="logout.php" style="color:rgb(235, 71, 53);">
+                <a href="../logout.php" style="color:rgb(235, 71, 53);">
                     <i class="fas fa-sign-out-alt"></i>
                     Logout
                 </a>
@@ -317,6 +374,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
     <div class="voucher-container tally-style">
     <div class="voucher-header">
         <h2>Receipt Voucher</h2>
+        <h3><?php echo $company_db ?></h3>
         <div class="current-date"><?= $display_date ?></div>
     </div>
 
@@ -328,13 +386,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
         </div>
     <?php endif; ?>
 
-    <?php if (!empty($success)): ?>
-        <div class="success">
-            <p><?= $success ?></p>
-        </div>
+    <?php if (!empty($successMessage)) : ?>
+    <div id="successMessage" style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+        <?= htmlspecialchars($successMessage) ?>
+    </div>
+
+    <script>
+        // Auto-hide the success message after 4 seconds
+        setTimeout(function() {
+            const msg = document.getElementById('successMessage');
+            if (msg) {
+                msg.style.transition = 'opacity 0.5s ease-out';
+                msg.style.opacity = '0';
+                setTimeout(() => msg.remove(), 300); // remove from DOM
+            }
+        }, 4000);
+    </script>
     <?php endif; ?>
 
-    <form method="POST" onsubmit="return validateForm()" class="voucher-form">
+    <form method="POST" id = "ReceiptVoucherForm"onsubmit="return validateForm()" class="voucher-form" autocomplete="off">
     <div class="form-row">
         <div class="form-group">
             <label>Voucher No:</label>
@@ -346,7 +416,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
         </div>
     </div>
 
-    <input type="hidden" name="voucher_type" value="Receipt">
+    <input type="hidden" name="voucher_type" value="Receipt"> 
 
 
         <div class="form-row">
@@ -355,7 +425,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
         <select name="debit_ledger_id" id="debit_ledger" class="form-control" onchange="updateCreditLedgers(); fetchBalance(this, 'debit_balance')" required>
             <option value="">--Select--</option>
             <?php foreach ($ledgers as $ledger): ?>
-                <?php if ($ledger['book_type'] === 'Cash' || $ledger['book_type'] === 'Bank'): ?> 
+                <?php if (($ledger['acc_type'] === 'Asset') && ($ledger['book_type'] === 'Cash' || $ledger['book_type'] === 'Bank')): ?> 
                     <option value="<?= $ledger['ledger_id'] ?>" 
                         <?= (isset($_POST['debit_ledger_id']) && $_POST['debit_ledger_id'] == $ledger['ledger_id']) ? 'selected' : '' ?>>
                         <?= $ledger['ledger_name'] ?>
@@ -414,7 +484,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
                 <?php 
                 $debit_ledger_id = $_POST['debit_ledger_id'] ?? 0;
                 foreach ($ledgers as $ledger): 
-                    if (in_array($ledger['acc_type'], ['Income', 'Liability']) && $ledger['ledger_id'] != $debit_ledger_id): 
+                    if (in_array($ledger['acc_type'], ['Income', 'Liability', 'Asset']) && $ledger['ledger_id'] != $debit_ledger_id): 
                         ?>
                     <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
                     <?php endif; endforeach; ?>
@@ -479,7 +549,7 @@ function updateCreditLedgers() {
         select.innerHTML = '<option value="">--Select--</option>';
 
         <?php foreach ($ledgers as $ledger): ?>
-            <?php if (in_array($ledger['acc_type'], ['Income', 'Liability', 'Sundry Debtor'])): ?>
+            <?php if ((in_array($ledger['acc_type'], ['Income', 'Liability']) && $ledger['group_id'] !== '24') || $ledger['group_id'] === '23'): ?>
                 if (<?= $ledger['ledger_id'] ?> != debitLedgerId) {
                     const option = new Option('<?= $ledger['ledger_name'] ?>', '<?= $ledger['ledger_id'] ?>');
                     select.add(option);
@@ -501,7 +571,7 @@ function fetchBalance(selectEl, targetId) {
     const displayBox = document.getElementById(targetId);
     if (!ledgerId || !displayBox) return;
 
-    fetch(`get_ledger_balance.php?ledger_id=${ledgerId}`)
+    fetch(`../get_ledger_balance.php?ledger_id=${ledgerId}`)
         .then(res => res.json())
         .then(data => {
             if (data.success) {
@@ -584,6 +654,15 @@ function validateForm() {
 
     return true;
 }
+
+window.addEventListener("load", function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("success") === "1") {
+        document.getElementById("ReceiptVoucherForm")?.reset();
+        // You can also manually clear dropdowns, date pickers, etc.
+    }
+});
+
 </script>
 
 

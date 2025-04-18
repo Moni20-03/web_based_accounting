@@ -1,8 +1,8 @@
 <?php
-include 'findb.php';
+include '../database/../database/findb.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: ../login.php");
     exit();
 }
 

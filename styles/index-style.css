@@ -311,7 +311,7 @@ body {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     flex: 1 1 300px;
-    max-width: 300px;
+    max-width: 340px;
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -368,6 +368,8 @@ body {
     line-height: 1.6;
   }
   
+
+
   /* About Section */
 .about {
   display: flex;

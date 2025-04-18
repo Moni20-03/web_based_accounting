@@ -1,5 +1,5 @@
 <?php
-include 'findb.php';
+include '../database/findb.php';
 
 // Clear POST data if coming from a successful submission redirect
 if (isset($_SESSION['form_success'])) {
@@ -137,7 +137,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Ledger</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="styles/form_style.css">
+    <link rel="stylesheet" href="../styles/form_style.css">
     <style>
 .form-container {
     max-width: 800px; /* Increased from 500px to accommodate two columns */
@@ -331,13 +331,13 @@ document.addEventListener('DOMContentLoaded', function () {
         <!-- Navbar -->
         <nav class="navbar">
         <div class="navbar-brand">
-            <a href="index.html">
-                <img class="logo" src="images/logo3.png" alt="Logo">
+            <a href="../index.html">
+                <img class="logo" src="../images/logo3.png" alt="Logo">
                 <span>FinPack</span> 
             </a>
         </div>
         <ul class="nav-links">
-            <li><a href="dashboard.php">
+            <li><a href="../dashboards/dashboard.php">
                 <i class="fas fa-tachometer-alt"></i> Dashboard</a>
             </li>
             <li>
@@ -347,7 +347,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 </a>
             </li>
             <li>
-                <a href="logout.php" style="color:rgb(235, 71, 53);">
+                <a href="../logout.php" style="color:rgb(235, 71, 53);">
                     <i class="fas fa-sign-out-alt"></i>
                     Logout
                 </a>

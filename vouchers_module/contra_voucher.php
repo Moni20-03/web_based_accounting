@@ -1,8 +1,18 @@
 <?php
-include 'findb.php';
+include '../database/findb.php';
+
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
 $user_id = $_SESSION['user_id'] ?? 0;
+$company_db = $_SESSION['company_name'];
+
 $errors = [];
-$success = '';
+$successMessage = '';
+if (isset($_GET['success']) && $_GET['success'] == '1') {
+    $successMessage = "Contra voucher created successfully!";
+}
 $display_date = date('d-M-Y');
 
 // Auto-generate voucher number
@@ -14,7 +24,7 @@ $nextNum = $row['last_num'] ? $row['last_num'] + 1 : 1;
 $voucherNumber = 'C' . $nextNum;
 
 // Get all ledgers (Cash/Bank)
-$ledgers = $conn->query("SELECT * FROM ledgers WHERE book_type IN ('cash', 'Bank') ORDER BY ledger_name ASC");
+$ledgers = $conn->query("SELECT * FROM ledgers WHERE acc_type = 'Asset' AND book_type IN ('cash', 'Bank') ORDER BY ledger_name ASC");
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $voucher_number = trim($_POST['voucher_number']);
@@ -65,11 +75,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $stmt->fetch();
             $stmt->close();
 
+            $opposite_ledger_ids = implode(',', $to_ledger_ids);
+
             $new_from_bal = ($from_dc === 'Debit') ? $from_bal - $total_amount : $from_bal + $total_amount;
 
             $stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, transaction_date, narration, opposite_ledger) 
                                     VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("iiisdssssi", $user_id, $voucher_id, $from_ledger_id, $from_acc_code, $total_amount, $new_from_bal, $mode_of_payment, $voucher_date, $narration_summary, $from_ledger_id);
+            $stmt->bind_param("iiisdssssi", $user_id, $voucher_id, $from_ledger_id, $from_acc_code, $total_amount, $new_from_bal, $mode_of_payment, $voucher_date, $narration_summary, $opposite_ledger_ids);
             $stmt->execute();
             $stmt->close();
 
@@ -81,7 +93,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // TO LEDGERs (Debit)
             foreach ($to_ledger_ids as $index => $to_id) {
                 $amount = (float)$to_amounts[$index];
-                $narration = trim($to_narrations[$index] ?? '');
+                $narration = (string)($to_narrations[$index] ?? '');
 
                 $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
                 $stmt->bind_param("i", $to_id);
@@ -107,6 +119,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $conn->commit();
             $success = "Contra voucher $voucherNumber created successfully!";
             $voucherNumber = 'C' . ($nextNum + 1);
+
+            header("Location: contra_voucher.php?success=1");
+            exit;
         } catch (Exception $e) {
             $conn->rollback();
             $errors[] = "Transaction failed: " . $e->getMessage();
@@ -119,8 +134,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Receipt Voucher - FINPACK</title>
-    <link rel="stylesheet" href="styles/form_style.css">
+    <title>Contra Voucher - FINPACK</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="../styles/form_style.css">
     <link rel="stylesheet" href="styles/navbar_style.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
@@ -262,13 +280,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <a href="index.html">
-                <img class="logo" src="images/logo3.png" alt="Logo">
+            <a href="../index.html">
+                <img class="logo" src="../images/logo3.png" alt="Logo">
                 <span>FinPack</span> 
             </a>
         </div>
         <ul class="nav-links">
-            <li><a href="dashboard.php">
+            <li><a href="../dashboards/dashboard.php">
                 <i class="fas fa-tachometer-alt"></i> Dashboard</a>
             </li>
             <li>
@@ -278,7 +296,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </a>
             </li>
             <li>
-                <a href="logout.php" style="color:rgb(235, 71, 53);">
+                <a href="../logout.php" style="color:rgb(235, 71, 53);">
                     <i class="fas fa-sign-out-alt"></i>
                     Logout
                 </a>
@@ -289,6 +307,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="voucher-container tally-style">
     <div class="voucher-header">
         <h2>Contra Voucher</h2>
+        <h3><?php echo $company_db ?></h3>
         <div class="current-date"><?= $display_date ?></div>
     </div>
 
@@ -300,13 +319,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
     <?php endif; ?>
 
-    <?php if (!empty($success)): ?>
-        <div class="success">
-            <p><?= $success ?></p>
-        </div>
+    <?php if (!empty($successMessage)) : ?>
+    <div id="successMessage" style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+        <?= htmlspecialchars($successMessage) ?>
+    </div>
+
+    <script>
+        // Auto-hide the success message after 4 seconds
+        setTimeout(function() {
+            const msg = document.getElementById('successMessage');
+            if (msg) {
+                msg.style.transition = 'opacity 0.5s ease-out';
+                msg.style.opacity = '0';
+                setTimeout(() => msg.remove(), 300); // remove from DOM
+            }
+        }, 4000);
+    </script>
     <?php endif; ?>
 
-    <form method="POST" onsubmit="return validateForm()" class="voucher-form">
+    <form method="POST" id = "contravoucherform"onsubmit="return validateForm()" class="voucher-form" autocomplete="off">
     <div class="form-row">
         <div class="form-group">
             <label>Voucher No:</label>
@@ -500,7 +531,7 @@ function fetchBalance(selectEl, targetId) {
     const displayBox = document.getElementById(targetId);
     if (!ledgerId || !displayBox) return;
 
-    fetch(`get_ledger_balance.php?ledger_id=${ledgerId}`)
+    fetch(`../get_ledger_balance.php?ledger_id=${ledgerId}`)
         .then(res => res.json())
         .then(data => {
             if (data.success) {
@@ -573,6 +604,14 @@ function validateContraForm() {
 
     return true;
 }
+
+window.addEventListener("load", function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("success") === "1") {
+        document.getElementById("contravoucherform")?.reset();
+        // You can also manually clear dropdowns, date pickers, etc.
+    }
+});
 </script>
 </body>
 </html>

@@ -34,7 +34,7 @@ $username = $_SESSION['username'];
             <li><a href="transactions.php"><i class="fas fa-exchange-alt"></i> Manage Transactions</a></li>
         </ul>
         <div class="logout-btn">
-            <a href="logout.php" class="btn btn-danger w-100"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            <a href="../logout.php" class="btn btn-danger w-100"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </nav>
 
