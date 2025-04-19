@@ -448,7 +448,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
                 msg.style.opacity = '0';
                 setTimeout(() => msg.remove(), 300); // remove from DOM
             }
-        }, 4000);
+        }, 1000);
     </script>
     <?php endif; ?>
 

@@ -80,6 +80,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $voucher_id = $stmt->insert_id;
             $stmt->close();
 
+            // === Log Voucher Insert ===
+            $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) VALUES (?, 'vouchers', ?, 'INSERT', NULL, ?)");
+            $new_value = json_encode([
+                'voucher_number' => $voucher_number,
+                'reference_number' => $reference_number,
+                'voucher_type' => $voucher_type,
+                'voucher_date' => $voucher_date,
+                'total_amount' => $total_amount
+            ]);
+            $log_stmt->bind_param("iis", $user_id, $voucher_id, $new_value);
+            $log_stmt->execute();
+            $log_stmt->close();
+
             $opposite_ledger_ids = implode(',', $credit_ledger_ids);
 
             // Handle DEBIT entries
@@ -96,10 +109,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                 $new_balance = ($dc == 'Debit') ? $balance + $amount : $balance - $amount;
 
-                $stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, opposite_ledger, transaction_date, narration) VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?, ?)");
+                $stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, opposite_ledger, transaction_date, narration) 
+                VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?, ?)");
                 $stmt->bind_param("iiisdssss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_balance, $opposite_ledger_ids, $voucher_date, $narration);
                 $stmt->execute();
+                $txn_id = $stmt->insert_id;
                 $stmt->close();
+
+                // === Log Debit Transaction Insert ===
+                $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) 
+                VALUES (?, 'transactions', ?, 'INSERT', NULL, ?)");
+                $new_value = json_encode([
+                    'voucher_id' => $voucher_id,
+                    'ledger_id' => $ledger_id,
+                    'amount' => $amount,
+                    'type' => 'Debit',
+                    'closing_balance' => $new_balance
+                ]);
+
+                $log_stmt->bind_param("iis", $user_id, $txn_id, $new_value);
+                $log_stmt->execute();
+                $log_stmt->close();
 
                 $stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
                 $stmt->bind_param("di", $new_balance, $ledger_id);
@@ -123,10 +153,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                 $new_balance = ($dc == 'Debit') ? $balance - $amount : $balance + $amount;
 
-                $stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, opposite_ledger, transaction_date, narration) VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?, ?)");
+                $stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, opposite_ledger, transaction_date, narration) 
+                VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?, ?)");
                 $stmt->bind_param("iiisdssss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_balance, $opp_ledger_ids ,$voucher_date, $nar);
                 $stmt->execute();
+                $txn_id = $stmt->insert_id;
                 $stmt->close();
+
+                // === Log Credit Transaction Insert ===
+                $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) VALUES (?, 'transactions', ?, 'INSERT', NULL, ?)");
+                $new_value = json_encode([
+                    'voucher_id' => $voucher_id,
+                    'ledger_id' => $ledger_id,
+                    'amount' => $amount,
+                    'type' => 'Credit',
+                    'closing_balance' => $new_balance
+                ]);
+                $log_stmt->bind_param("iis", $user_id, $txn_id, $new_value);
+                $log_stmt->execute();
+                $log_stmt->close();
 
                 $stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
                 $stmt->bind_param("di", $new_balance, $ledger_id);
@@ -349,7 +394,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 msg.style.opacity = '0';
                 setTimeout(() => msg.remove(), 300); // remove from DOM
             }
-        }, 4000);
+        }, 1000);
     </script>
     <?php endif; ?>
 
@@ -393,7 +438,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <div id="debit_balance_0" class="balance-box"></div>
                 </td>
                 <td><input type="number" name="debit_amount[]" class="form-control" oninput="autoFillCreditAmount()" step="0.01" min="0.01" required></td>
-                <td><input type="text" name="debit_narration[]" class="form-control"></td>
+                <td><input type="text" name="debit_narration[]" class="form-control" oninput="autoFillNarration()" ></td>
                 <td>
                     <button type="button" class="btn btn-outline-danger" onclick="this.closest('tr').remove()">
                         <i class="bi bi-trash"></i>
@@ -561,6 +606,40 @@ function autoFillCreditAmount() {
         input.value = totalDebit.toFixed(2);
     });
 }
+
+function autoFillNarration() {
+    // Get all debit narration inputs
+    const debitNarrations = document.querySelectorAll('input[name="debit_narration[]"]');
+    
+    // Get all credit narration inputs
+    const creditNarrations = document.querySelectorAll('input[name="credit_narration[]"]');
+    
+    // For each debit narration input
+    debitNarrations.forEach((debitInput, index) => {
+        // If there's a corresponding credit narration input
+        if (creditNarrations[index]) {
+            // Only auto-fill if the credit narration is empty or matches the debit value
+            // This prevents overwriting user edits after initial auto-fill
+            const currentDebitValue = debitInput.value;
+            const currentCreditValue = creditNarrations[index].value;
+            
+            if (currentDebitValue && (!currentCreditValue || currentCreditValue === currentDebitValue)) {
+                creditNarrations[index].value = currentDebitValue;
+            }
+            
+            // Add event listener to auto-update when debit changes (if desired)
+            debitInput.addEventListener('input', function() {
+                if (!creditNarrations[index].value || creditNarrations[index].value === currentDebitValue) {
+                    creditNarrations[index].value = this.value;
+                }
+            });
+        }
+    });
+}
+
+// You can call this function when the page loads and whenever new rows are added
+document.addEventListener('DOMContentLoaded', autoFillNarration);
+
 
 function validateContraForm() {
     let fromLedger = document.getElementById('from_ledger');

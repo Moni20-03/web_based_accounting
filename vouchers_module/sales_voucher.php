@@ -80,7 +80,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
             $voucher_id = $stmt->insert_id;
             $stmt->close();
 
+            // === Log Voucher Insert ===
+            $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) VALUES (?, 'vouchers', ?, 'INSERT', NULL, ?)");
+            $new_value = json_encode([
+                'voucher_number' => $voucher_number,
+                'reference_number' => $reference_number,
+                'voucher_type' => $voucher_type,
+                'voucher_date' => $voucher_date,
+                'total_amount' => $total_amount
+            ]);
+            $log_stmt->bind_param("iis", $user_id, $voucher_id, $new_value);
+            $log_stmt->execute();
+            $log_stmt->close();
+
             $narration_summary = "Sales made from ledger ID: $debit_ledger_id";
+
             // Debit Entry (Party/Cash/Bank)
             $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
             $stmt->bind_param("i", $debit_ledger_id);
@@ -93,10 +107,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
 
             $new_balance = ($dc_type === 'Debit') ? $cur_bal + $total_amount : $cur_bal - $total_amount;
 
-            $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?, ?, ?)");
+            $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) 
+            VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?, ?, ?)");
             $txn_stmt->bind_param("iiisdsssss", $user_id, $voucher_id, $debit_ledger_id, $acc_code, $total_amount, $new_balance, $mode_of_payment, $opposite_ledger_ids, $voucher_date, $narration_summary);
             $txn_stmt->execute();
+            $txn_id = $txn_stmt->insert_id;
             $txn_stmt->close();
+
+            // === Log Debit Transaction Insert ===
+            $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) 
+            VALUES (?, 'transactions', ?, 'INSERT', NULL, ?)");
+            $new_value = json_encode([
+                'voucher_id' => $voucher_id,
+                'ledger_id' => $debit_ledger_id,
+                'amount' => $total_amount,
+                'type' => 'Debit',
+                'closing_balance' => $new_balance
+            ]);
+            $log_stmt->bind_param("iis", $user_id, $txn_id, $new_value);
+            $log_stmt->execute();
+            $log_stmt->close();
 
             // Update debit ledger
             $update_stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
@@ -117,10 +147,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
 
                 $new_bal = ($dc_type === 'Credit') ? $cur_bal + $amount : $cur_bal - $amount;
 
-                $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?, ?, ?)");
+                $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) 
+                VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?, ?, ?)");
                 $txn_stmt->bind_param("iiisdssiss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_bal, $mode_of_payment, $debit_ledger_id, $voucher_date, $nar);
                 $txn_stmt->execute();
+                $txn_id = $txn_stmt->insert_id;
                 $txn_stmt->close();
+
+                // === Log Credit Transaction Insert ===
+                $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) VALUES (?, 'transactions', ?, 'INSERT', NULL, ?)");
+                $new_value = json_encode([
+                    'voucher_id' => $voucher_id,
+                    'ledger_id' => $ledger_id,
+                    'amount' => $amount,
+                    'type' => 'Credit',
+                    'closing_balance' => $new_bal
+                ]);
+                $log_stmt->bind_param("iis", $user_id, $txn_id, $new_value);
+                $log_stmt->execute();
+                $log_stmt->close();
 
                 $update_stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
                 $update_stmt->bind_param("di", $new_bal, $ledger_id);
