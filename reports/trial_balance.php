@@ -11,6 +11,7 @@ while ($group = $groups->fetch_assoc()) {
     $group_id = $group['group_id'];
     $group_name = $group['group_name'];
 
+    // $_SESSION['group_id'] = $group_id;
     $ledgers = $conn->query("SELECT ledger_id, ledger_name FROM ledgers WHERE group_id = $group_id ORDER BY ledger_name");
 
     $group_total_dr = $group_total_cr = 0;
@@ -50,53 +51,76 @@ while ($group = $groups->fetch_assoc()) {
     }
 }
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trial Balance</title>
+    <link rel="stylesheet" href="../styles/trial-bal_style.css">
+</head>
+<body>
 
-<h2>Trial Balance as on <?= date('d-M-Y', strtotime($report_date)) ?></h2>
+<div class="container">
+    <div class="header">
+        <h1 class="title">Trial Balance as on <?= date('d-M-Y', strtotime($report_date)) ?></h1>
+        
+        <form method="get" class="date-form">
+            <label for="report_date">Report Date:</label>
+            <input type="date" id="report_date" name="report_date" value="<?= $report_date ?>" required>
+            <button type="submit" class="button">Generate</button>
+            <button type="button" class="button print" onclick="window.print()">Print Report</button>
+        </form>
+    </div>
 
-<form method="get" style="margin-bottom: 15px;">
-    <label>Report Date:</label>
-    <input type="date" name="report_date" value="<?= $report_date ?>" required>
-    <button type="submit">Generate</button>
-    <button type="button" onclick="window.print()">🖨️ Print</button>
-</form>
+    <table class="trial-balance-table">
+        <thead>
+            <tr>
+                <th>Account Group</th>
+                <th class="amount">Debit (Dr)</th>
+                <th class="amount">Credit (Cr)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php
+            $total_dr = $total_cr = 0;
+            foreach ($trial_data as $group):
+                $total_dr += $group['total_dr'];
+                $total_cr += $group['total_cr'];
+            ?>
+            <tr class="group-row" onclick="document.getElementById('form-<?= $group['group_id'] ?>').submit()">
+                <td><?= htmlspecialchars($group['group_name']) ?></td>
+                <td class="amount"><?= $group['total_dr'] > 0 ? number_format($group['total_dr'], 2) : '' ?></td>
+                <td class="amount"><?= $group['total_cr'] > 0 ? number_format($group['total_cr'], 2) : '' ?></td>
+            </tr>
 
-<table border="1" width="100%" cellpadding="6" cellspacing="0">
-    <thead>
-        <tr>
-            <th>Account Group</th>
-            <th>Debit (Dr)</th>
-            <th>Credit (Cr)</th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php
-        $total_dr = $total_cr = 0;
-        foreach ($trial_data as $group):
-            $total_dr += $group['total_dr'];
-            $total_cr += $group['total_cr'];
-        ?>
-        <tr class="group-row" onclick="window.location.href='group_summary.php?group_id=<?= $group['group_id'] ?>&report_date=<?= $report_date ?>';" style="cursor: pointer; background: #f1f1f1;">
-            <td><?= htmlspecialchars($group['group_name']) ?></td>
-            <td align="right"><?= $group['total_dr'] > 0 ? number_format($group['total_dr'], 2) :'' ?></td>
-            <td align="right"><?= $group['total_cr'] > 0 ? number_format($group['total_cr'], 2) :'' ?></td>
-        </tr>
-        <?php endforeach; ?>
+            <!-- Hidden form for each row -->
+            <form id="form-<?= $group['group_id'] ?>" method="post" action="group_summary.php" style="display:none;">
+            <input type="hidden" name="group_id" value="<?= $group['group_id'] ?>">
+            <input type="hidden" name="report_date" value="<?= $report_date ?>">
+            </form>
+            <?php endforeach; ?>
 
-        <tr style="font-weight: bold; background: #f8f8f8;">
-            <td align="right">TOTAL</td>
-            <td align="right"><?= number_format($total_dr, 2) ?></td>
-            <td align="right"><?= number_format($total_cr, 2) ?></td>
-        </tr>
+            <tr class="total-row">
+                <td align="right">TOTAL</td>
+                <td class="amount"><?= number_format($total_dr, 2) ?></td>
+                <td class="amount"><?= number_format($total_cr, 2) ?></td>
+            </tr>
 
-        <?php if ($total_dr !== $total_cr): ?>
-        <tr style="background-color:#ffefef;">
-            <td align="right"><i>Difference in Opening Balances</i></td>
-            <?php if ($total_dr > $total_cr): ?>
-                <td></td><td align="right"><?= number_format($total_dr - $total_cr, 2) ?></td>
-            <?php else: ?>
-                <td align="right"><?= number_format($total_cr - $total_dr, 2) ?></td><td></td>
+            <?php if ($total_dr !== $total_cr): ?>
+            <tr class="difference-row">
+                <td align="right"><i>Difference in Opening Balances</i></td>
+                <?php if ($total_dr > $total_cr): ?>
+                    <td></td>
+                    <td class="amount"><?= number_format($total_dr - $total_cr, 2) ?></td>
+                <?php else: ?>
+                    <td class="amount"><?= number_format($total_cr - $total_dr, 2) ?></td>
+                    <td></td>
+                <?php endif; ?>
+            </tr>
             <?php endif; ?>
-        </tr>
-        <?php endif; ?>
-    </tbody>
-</table>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

@@ -1,0 +1,207 @@
+/* Ledger Voucher Styles */
+:root {
+    --primary-blue: #1A2A57;
+    --accounting-green: #4CAF50;
+    --alert-red: #E53935;
+    --light-gray: #F5F7FA;
+    --hover-blue: #2A3A77;
+    --selected-blue: #3A4A97;
+    --white: #FFFFFF;
+    --border-color: #E0E0E0;
+}
+
+body {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background-color: var(--light-gray);
+    color: var(--primary-blue);
+    margin: 0;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    background-color: var(--white);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 30px;
+}
+
+.breadcrumb {
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    background-color: var(--light-gray);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.breadcrumb a {
+    color: var(--primary-blue);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.breadcrumb a:hover {
+    color: var(--hover-blue);
+    text-decoration: underline;
+}
+
+.ledger-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--primary-blue);
+}
+
+.ledger-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--primary-blue);
+    margin: 0;
+}
+
+.ledger-title span {
+    font-weight: 400;
+    font-size: 16px;
+    color: #555;
+}
+
+.voucher-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 25px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.voucher-table th {
+    background-color: var(--primary-blue);
+    color: var(--white);
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.voucher-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.voucher-table tr:nth-child(even) {
+    background-color: rgba(245, 247, 250, 0.5);
+}
+
+.voucher-table tr:hover {
+    background-color: rgba(26, 42, 87, 0.05);
+}
+
+.amount {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+}
+
+/* Summary Table - Professional Accounting Style */
+.summary-container {
+    margin-top: 30px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.summary-table {
+    width: 400px;
+    border-collapse: collapse;
+    font-size: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.summary-table th,
+.summary-table td {
+    padding: 12px 15px;
+    text-align: right;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Left-align labels, right-align amounts */
+.summary-table th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--primary-blue);
+    width: 60%;
+}
+
+/* Amount columns styling */
+.summary-table td {
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Highlight the closing balance */
+.summary-table tr.closing-balance {
+    background-color: rgba(76, 175, 80, 0.08);
+}
+
+.summary-table tr.closing-balance th,
+.summary-table tr.closing-balance td {
+    border-top: 2px solid var(--accounting-green);
+    border-bottom: 2px solid var(--accounting-green);
+    font-weight: 600;
+    font-size: 15.5px;
+}
+
+/* Debit/Credit indicators */
+.summary-table .dr {
+    color: var(--primary-blue);
+}
+
+.summary-table .cr {
+    color: var(--alert-red);
+}
+
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+    
+    .voucher-table {
+        display: block;
+        overflow-x: auto;
+    }
+    
+    .summary-container {
+        justify-content: center;
+    }
+    
+    .summary-table {
+        width: 100%;
+        max-width: 400px;
+    }
+}
+
+/* Print styles */
+@media print {
+    body {
+        background-color: white;
+        padding: 0;
+        font-size: 12px;
+    }
+    
+    .container {
+        box-shadow: none;
+        padding: 0;
+    }
+    
+    .breadcrumb {
+        display: none;
+    }
+    
+    .voucher-table th {
+        background-color: white !important;
+        color: black !important;
+        border-bottom: 2px solid black;
+    }
+}

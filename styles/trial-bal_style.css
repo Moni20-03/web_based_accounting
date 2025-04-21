@@ -1,0 +1,191 @@
+/* FinPack Trial Balance Sheet Styles */
+:root {
+    --primary-blue: #1A2A57;
+    --accounting-green: #4CAF50;
+    --alert-red: #E53935;
+    --light-gray: #F5F7FA;
+    --hover-blue: #2A3A77;
+    --selected-blue: #3A4A97;
+    --white: #FFFFFF;
+}
+
+body {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background-color: var(--light-gray);
+    color: var(--primary-blue);
+    margin: 0;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    background-color: var(--white);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 30px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--primary-blue);
+}
+
+.title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--primary-blue);
+    margin: 0;
+}
+
+.date-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.date-form label {
+    font-weight: 500;
+    color: var(--primary-blue);
+}
+
+.date-form input[type="date"] {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.button {
+    padding: 8px 16px;
+    background-color: var(--primary-blue);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.button:hover {
+    background-color: var(--hover-blue);
+}
+
+.button.print {
+    background-color: var(--accounting-green);
+}
+
+.button.print:hover {
+    background-color: #3d8b40;
+}
+
+.trial-balance-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.trial-balance-table thead {
+    background-color: var(--primary-blue);
+    color: var(--white);
+}
+
+.trial-balance-table th {
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.trial-balance-table th:last-child {
+    text-align: right;
+}
+
+.trial-balance-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.trial-balance-table tbody tr.group-row {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.trial-balance-table tbody tr.group-row:hover {
+    background-color: rgba(26, 42, 87, 0.08) !important;
+    transform: translateX(2px);
+}
+
+.trial-balance-table tbody tr.group-row:active {
+    background-color: rgba(26, 42, 87, 0.15) !important;
+}
+
+.trial-balance-table tbody tr:nth-child(even) {
+    background-color: var(--light-gray);
+}
+
+.trial-balance-table tbody tr.total-row {
+    font-weight: 600;
+    background-color: rgba(26, 42, 87, 0.05);
+}
+
+.trial-balance-table tbody tr.difference-row {
+    background-color: rgba(229, 57, 53, 0.08);
+    color: var(--alert-red);
+    font-style: italic;
+}
+
+.trial-balance-table .amount {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .date-form {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .trial-balance-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+/* Print-specific styles */
+@media print {
+    body {
+        background-color: white;
+        padding: 0;
+    }
+    
+    .container {
+        box-shadow: none;
+        padding: 0;
+    }
+    
+    .date-form, .button {
+        display: none;
+    }
+    
+    .trial-balance-table {
+        box-shadow: none;
+    }
+    
+    .trial-balance-table tr {
+        page-break-inside: avoid;
+    }
+}

@@ -1,0 +1,174 @@
+/* FinPack Trial Balance Sheet Styles */
+:root {
+    --primary-blue: #1A2A57;
+    --accounting-green: #4CAF50;
+    --alert-red: #E53935;
+    --light-gray: #F5F7FA;
+    --hover-blue: #2A3A77;
+    --selected-blue: #3A4A97;
+    --white: #FFFFFF;
+}
+
+body {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background-color: var(--light-gray);
+    color: var(--primary-blue);
+    margin: 0;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+.group-summary-container {
+    max-width: 1200px;
+    margin: 20px auto;
+    background-color: var(--white);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 30px;
+}
+
+.group-summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--primary-blue);
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.group-summary-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--primary-blue);
+    margin: 0;
+}
+
+.group-summary-title span {
+    font-weight: 400;
+    font-size: 16px;
+    color: #555;
+}
+
+.group-summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.group-summary-table thead {
+    background-color: var(--primary-blue);
+    color: var(--white);
+}
+
+.group-summary-table th {
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.group-summary-table th:nth-child(2),
+.group-summary-table th:nth-child(3) {
+    text-align: right;
+}
+
+.group-summary-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.group-summary-table tbody tr.ledger-row {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.group-summary-table tbody tr.ledger-row:hover {
+    background-color: rgba(26, 42, 87, 0.08) !important;
+    transform: translateX(2px);
+}
+
+.group-summary-table tbody tr.ledger-row:active {
+    background-color: rgba(26, 42, 87, 0.15) !important;
+}
+
+.group-summary-table tbody tr:nth-child(even) {
+    background-color: var(--light-gray);
+}
+
+.group-summary-table tbody tr.total-row {
+    font-weight: 600;
+    background-color: rgba(26, 42, 87, 0.05);
+}
+
+.group-summary-table .amount {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+}
+
+/* Breadcrumb navigation */
+.breadcrumb {
+    padding: 8px 15px;
+    margin-bottom: 20px;
+    background-color: var(--light-gray);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.breadcrumb a {
+    color: var(--primary-blue);
+    text-decoration: none;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+/* Enhanced form controls */
+.group-summary-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.group-summary-form label {
+    font-weight: 500;
+    color: var(--primary-blue);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .group-summary-header {
+        flex-direction: column;
+    }
+    
+    .group-summary-form {
+        width: 100%;
+    }
+    
+    .group-summary-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+/* Print styles */
+@media print {
+    .group-summary-container {
+        box-shadow: none;
+        padding: 0;
+    }
+    
+    .group-summary-form, .button {
+        display: none;
+    }
+    
+    .group-summary-table {
+        box-shadow: none;
+    }
+    
+    .group-summary-table tr {
+        page-break-inside: avoid;
+    }
+}
