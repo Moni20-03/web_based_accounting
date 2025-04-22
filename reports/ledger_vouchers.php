@@ -1,8 +1,11 @@
 <?php
 include '../database/findb.php';
 
-$ledger_id = $_GET['ledger_id'] ?? 0;
-$to_date = $_GET['to_date'] ?? date('Y-m-d');
+$company_db = $_SESSION['company_name'];
+
+$group_id = $_POST['group_id'] ?? 0;
+$ledger_id = $_POST['ledger_id'] ?? 0;
+$to_date = $_POST['to_date'] ?? date('Y-m-d');
 
 if ($ledger_id <= 0) die("Invalid ledger");
 
@@ -27,29 +30,58 @@ $stmt = $conn->prepare("
 $stmt->bind_param("is", $ledger_id, $to_date);
 $stmt->execute();
 $result = $stmt->get_result();
-
-
 ?>
 <!DOCTYPE html>
 <html>
 <head>
     <title>Ledger Voucher Details</title>
+    <link rel="stylesheet" href="../styles/trial-bal_style.css">
+    <link rel="stylesheet" href="../styles/grpsummary_style.css">
     <link rel="stylesheet" href="../styles/ledger_voucher.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .voucher-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         .voucher-table th, .voucher-table td { border: 1px solid #ccc; padding: 8px; text-align: left; }
         .amount { text-align: right; }
-        .breadcrumb { margin-bottom: 10px; }
+        /* .breadcrumb { margin-bottom: 10px; } */
+        .dr { color: #d32f2f; } /* Red for debit */
+        .cr { color: #388e3c; } /* Green for credit */
+        .accounting-indicator { font-size: 1 rem; margin-left: 5px; }
+        .closing-balance { font-weight: bold; }
+        .action-bar { margin: 15px 0; display: flex; gap: 10px; align-items: center; }
+        .action-bar input, .action-bar button { padding: 5px 10px; }
+        .print-only { display: none; }
+        @media print {
+            .no-print { display: none; }
+            .print-only { display: block; }
+            body { font-size: 12px; }
+            .voucher-table { width: 100%; }
+        }
     </style>
 </head>
 <body>
-    <div class="breadcrumb">
-        <a href="trial_balance.php">Trial Balance</a> &raquo;
-        <a href="group_summary.php?group_id=<?= $_GET['group_id'] ?? '' ?>&report_date=<?= $to_date ?>">Group Summary</a> &raquo;
-        <span>Ledger: <?= htmlspecialchars($ledger_name) ?></span>
-    </div>
+<div class = "group-summary-container">
+<div class="breadcrumb">
+    <a href="trial_balance.php">Trial Balance</a> &raquo; 
+    <a href="group_summary.php?group_id=<?= $group_id ?>&report_date=<?= $to_date ?>">Group Summary</a> &raquo;
+    <span>Ledger: <?= htmlspecialchars($ledger_name) ?></span>
+</div>
 
-    <h2>Ledger: <?= htmlspecialchars($ledger_name) ?> (Up to <?= date('d-M-Y', strtotime($to_date)) ?>)</h2>
+<div class="group-summary-header">
+    <h1 class="group-summary-title">
+    <?= htmlspecialchars($company_db) ?> - Ledger Voucher: <?= htmlspecialchars($ledger_name) ?>
+        <span>(As on <?= date('d-M-Y', strtotime($to_date)) ?>)</span>
+    </h1>
+    
+    <form method="post" class="group-summary-form" action="" id="dateForm">
+        <input type="hidden" name="group_id" value="<?= $group_id ?>">
+        <input type="hidden" name="ledger_id" value="<?= $ledger_id ?>">
+        <label for="to_date">Report Date:</label>
+        <input type="date" id="to_date" name="to_date" value="<?= $to_date ?>" required>
+        <button type="submit" class="button">Generate</button>
+        <button type="button" class="button print" onclick="window.print()">Print Report</button>
+    </form>
+</div>
 
     <table class="voucher-table">
         <thead>
@@ -92,36 +124,41 @@ $result = $stmt->get_result();
     </table>
 
     <div class="summary-container">
-    <table class="summary-table">
-        <tr>
-            <th>Opening Balance</th>
-            <td class="<?= $opening_balance >= 0 ? 'dr' : 'cr' ?>">
-                <?= number_format(abs($opening_balance), 2) ?> 
-                <span class="accounting-indicator"><?= $opening_balance >= 0 ? 'Dr' : 'Cr' ?></span>
-            </td>
-        </tr>
-        <tr>
-            <th>Total Debits</th>
-            <td class="dr">
-                <?= number_format($total_dr, 2) ?> 
-                <span class="accounting-indicator">Dr</span>
-            </td>
-        </tr>
-        <tr>
-            <th>Total Credits</th>
-            <td class="cr">
-                <?= number_format($total_cr, 2) ?> 
-                <span class="accounting-indicator">Cr</span>
-            </td>
-        </tr>
-        <tr class="closing-balance">
-            <th>Closing Balance</th>
-            <td class="<?= $closing_balance >= 0 ? 'dr' : 'cr' ?>">
-                <?= number_format(abs($closing_balance), 2) ?> 
-                <span class="accounting-indicator"><?= $closing_balance >= 0 ? 'Dr' : 'Cr' ?></span>
-            </td>
-        </tr>
-    </table>
+        <table class="summary-table">
+            <tr>
+                <th>Opening Balance</th>
+                <td class="<?= $opening_balance >= 0 ? 'dr' : 'cr' ?>">
+                    <?= number_format(abs($opening_balance), 2) ?> 
+                    <span class="accounting-indicator"><?= $opening_balance >= 0 ? 'Dr' : 'Cr' ?></span>
+                </td>
+            </tr>
+            <tr>
+                <th>Total Debits</th>
+                <td class="dr">
+                    <?= number_format($total_dr, 2) ?> 
+                    <span class="accounting-indicator">Dr</span>
+                </td>
+            </tr>
+            <tr>
+                <th>Total Credits</th>
+                <td class="cr">
+                    <?= number_format($total_cr, 2) ?> 
+                    <span class="accounting-indicator">Cr</span>
+                </td>
+            </tr>
+            <tr class="closing-balance">
+                <th>Closing Balance</th>
+                <td class="<?= $closing_balance >= 0 ? 'dr' : 'cr' ?>">
+                    <?= number_format(abs($closing_balance), 2) ?> 
+                    <span class="accounting-indicator"><?= $closing_balance >= 0 ? 'Dr' : 'Cr' ?></span>
+                </td>
+            </tr>
+        </table>
+    </div>
 </div>
+    <script>
+        // Focus on date field for quick navigation
+        document.getElementById('to_date').focus();
+    </script>
 </body>
 </html>

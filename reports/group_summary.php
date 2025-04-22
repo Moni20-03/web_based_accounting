@@ -1,6 +1,6 @@
 <?php
 include '../database/findb.php';
-
+$company_db = $_SESSION['company_name'];
 // 1. Always prioritize the NEW date from the form submission
 $group_id = $_POST['group_id'] ?? $_GET['group_id'] ?? 0; // Supports both GET/POST
 $report_date = $_POST['report_date'] ?? $_GET['report_date'] ?? date('Y-m-d'); // Updated line
@@ -13,7 +13,6 @@ $group = $conn->query("SELECT group_name FROM groups WHERE group_id = $group_id"
 if (!$group) die("Group not found");
 $group_name = $group['group_name'];
 
-// $group_id = $group['group_id'];
 // 4. Fetch ledgers WITH UPDATED DATE FILTER
 $ledgers = $conn->query("SELECT ledger_id, ledger_name FROM ledgers WHERE group_id = $group_id ORDER BY ledger_name");
 $ledger_balances = [];
@@ -56,6 +55,20 @@ while ($ledger = $ledgers->fetch_assoc()) {
     <title>Group Summary</title>
     <link rel="stylesheet" href="../styles/trial-bal_style.css">
     <link rel="stylesheet" href="../styles/grpsummary_style.css">
+    <script>
+        // Prevent back navigation - redirect to dashboard instead
+        history.pushState(null, null, document.URL);
+        window.addEventListener('popstate', function() {
+            window.location.href = '../dashboards/dashboard.php'; // Change to your dashboard path
+        });
+        
+        // Also handle direct access by replacing the initial history entry
+        window.onload = function() {
+            if (window.history.replaceState) {
+                window.history.replaceState(null, null, window.location.href);
+            }
+        };
+    </script>
 </head>
 <body>
     
@@ -68,7 +81,7 @@ while ($ledger = $ledgers->fetch_assoc()) {
     
     <div class="group-summary-header">
         <h1 class="group-summary-title">
-            Group Summary: <?= htmlspecialchars($group_name) ?>
+        <?= htmlspecialchars($company_db) ?> - Group Summary: <?= htmlspecialchars($group_name) ?>
             <span>(As on <?= date('d-M-Y', strtotime($report_date)) ?>)</span>
         </h1>
         
@@ -76,7 +89,7 @@ while ($ledger = $ledgers->fetch_assoc()) {
             <input type="hidden" name="group_id" value="<?= $group_id ?>">
             <label for="report_date">Report Date:</label>
             <input type="date" id="report_date" name="report_date" value="<?= $report_date ?>" required>
-            <button type="submit" class="button">Refresh</button>
+            <button type="submit" class="button">Generate</button>
             <button type="button" class="button print" onclick="window.print()">Print Report</button>
         </form>
     </div>
@@ -96,8 +109,12 @@ while ($ledger = $ledgers->fetch_assoc()) {
                 $total_dr += $ledger['dr'];
                 $total_cr += $ledger['cr'];
             ?>
-            <tr class="ledger-row" 
-            onclick="window.location.href='ledger_vouchers.php?ledger_id=<?= $ledger['ledger_id'] ?>&to_date=<?= $report_date ?>'">
+            <form id="ledgerForm<?= $ledger['ledger_id'] ?>" method="post" action="ledger_vouchers.php" style="display:none;">
+                <input type="hidden" name="ledger_id" value="<?= $ledger['ledger_id'] ?>">
+                <input type="hidden" name="group_id" value="<?= $group_id ?>">
+                <input type="hidden" name="to_date" value="<?= $report_date ?>">
+            </form>
+            <tr class="ledger-row" onclick="document.getElementById('ledgerForm<?= $ledger['ledger_id'] ?>').submit();">
                 <td><?= htmlspecialchars($ledger['ledger_name']) ?></td>
                 <td class="amount"><?= $ledger['dr'] > 0 ? number_format($ledger['dr'], 2) : '' ?></td>
                 <td class="amount"><?= $ledger['cr'] > 0 ? number_format($ledger['cr'], 2) : '' ?></td>

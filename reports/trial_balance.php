@@ -1,6 +1,7 @@
 <?php
 include '../database/findb.php';
 
+$company_db = $_SESSION['company_name'];
 $report_date = $_GET['report_date'] ?? date('Y-m-d');
 
 $groups = $conn->query("SELECT group_id, group_name FROM groups ORDER BY group_name");
@@ -63,7 +64,8 @@ while ($group = $groups->fetch_assoc()) {
 
 <div class="container">
     <div class="header">
-        <h1 class="title">Trial Balance as on <?= date('d-M-Y', strtotime($report_date)) ?></h1>
+
+        <h1 class="title"><?= htmlspecialchars($company_db) ?> - Trial Balance as on <?= date('d-M-Y', strtotime($report_date)) ?></h1>
         
         <form method="get" class="date-form">
             <label for="report_date">Report Date:</label>
