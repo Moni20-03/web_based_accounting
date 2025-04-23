@@ -18,7 +18,7 @@ $opening_balance = (float)$ledger['opening_balance'];
 // Fetch all transactions for this ledger up to the report date
 $stmt = $conn->prepare("
     SELECT t.transaction_id, t.transaction_date, t.amount, t.transaction_type, t.narration, 
-           v.voucher_number, v.voucher_type,
+           v.voucher_id,v.voucher_number, v.voucher_type,
            l.ledger_name AS opposite_ledger_name
     FROM transactions t
     JOIN vouchers v ON t.voucher_id = v.voucher_id
@@ -96,15 +96,26 @@ $result = $stmt->get_result();
             </tr>
         </thead>
         <tbody>
-            <?php
+        <?php
             $total_dr = $total_cr = 0;
             while ($row = $result->fetch_assoc()):
                 $dr = $row['transaction_type'] === 'Debit' ? $row['amount'] : '';
                 $cr = $row['transaction_type'] === 'Credit' ? $row['amount'] : '';
                 if ($dr) $total_dr += $row['amount'];
                 if ($cr) $total_cr += $row['amount'];
+
+                // Define the URL based on voucher_type
+                switch ($row['voucher_type']) {
+                    case 'Payment': $edit_url = "../vouchers_module/edit_payment.php?id=" . $row['voucher_id']; break;
+                    case 'Receipt': $edit_url = "../vouchers_module/edit_receipt.php?id=" . $row['voucher_id']; break;
+                    case 'Contra': $edit_url = "../vouchers_module/edit_contra.php?id=" . $row['voucher_id']; break;
+                    case 'Journal': $edit_url = "../vouchers_module/edit_journal.php?id=" . $row['voucher_id']; break;
+                    case 'Sales': $edit_url = "../vouchers_module/edit_sales.php?id=" . $row['voucher_id']; break;
+                    case 'Purchase': $edit_url = "../vouchers_module/edit_purchase.php?id=" . $row['voucher_id']; break;
+                    default: $edit_url = "#"; break;
+                }
             ?>
-            <tr>
+            <tr class="clickable-row" data-href="<?= $edit_url ?>">
                 <td><?= date('d-M-Y', strtotime($row['transaction_date'])) ?></td>
                 <td><?= htmlspecialchars($row['opposite_ledger_name']) ?></td>
                 <td><?= htmlspecialchars($row['voucher_number']) ?></td>
@@ -114,6 +125,7 @@ $result = $stmt->get_result();
                 <td class="amount"><?= $cr ? number_format($cr, 2) : '' ?></td>
             </tr>
             <?php endwhile; ?>
+
             <tr>
                 <th colspan="5" align="right">TOTAL</th>
                 <th class="amount"><?= number_format($total_dr, 2) ?></th>
@@ -157,6 +169,17 @@ $result = $stmt->get_result();
     </div>
 </div>
     <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                document.querySelectorAll(".clickable-row").forEach(row => {
+                    row.addEventListener("click", () => {
+                        const href = row.getAttribute("data-href");
+                        if (href && href !== "#") {
+                            window.location.href = href;
+                        }
+                    });
+                });
+            });
+
         // Focus on date field for quick navigation
         document.getElementById('to_date').focus();
     </script>

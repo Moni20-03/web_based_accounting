@@ -1,5 +1,5 @@
 <?php
-include '../database/../database/findb.php';
+include '../database/findb.php';
 
 // Ensure only Company Head can access
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Company Head') {
@@ -26,7 +26,6 @@ $voucher_result = mysqli_query($conn, $voucher_query);
 if ($voucher_row = mysqli_fetch_assoc($voucher_result)) {
     $total_vouchers = $voucher_row['total'];
 }
-
 
 
 // --- 4. Last Voucher Info ---
@@ -110,12 +109,8 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
           <i class="fas fa-chevron-down"></i>
         </a>
         <ul class = "submenu">
-            <li><a href="../vouchers_module/payment_voucher.php"><i class="fas fa-credit-card"></i>Payment</a></li> 
-            <li><a href="../vouchers_module/receipt_voucher.php"><i class="fas fa-file-invoice-dollar"></i><span style="margin-left:0px;">Receipt</span></a></li> 
-            <li><a href="../vouchers_module/contra_voucher.php"><i class="fas fa-random"></i>Contra</a></li> 
-            <li><a href="../vouchers_module/journal_voucher.php"><i class="fas fa-pen-to-square"></i>Journal</a></li> 
-            <li><a href="../vouchers_module/sales_voucher.php"><i class="fas fa-tags"></i>Sales</a></li> 
-            <li><a href="../vouchers_module/purchase_voucher.php"><i class="fas fa-boxes"></i>Purchase</a></li> 
+            <li><a href="../vouchers_module/creating_voucher.php"><i class="fas fa-folder-plus"></i>Create</a></li> 
+            <li><a href="../vouchers_module/managing_voucher.php"><i class="fas fa-list"></i>Manage</a></li> 
         </ul>
       </li>
 

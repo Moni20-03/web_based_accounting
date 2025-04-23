@@ -1,6 +1,5 @@
 <?php
 include '../database/findb.php';
-
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
@@ -11,43 +10,45 @@ $errors = [];
 $successMessage = '';
 
 // Get voucher ID from URL
-$voucher_id = $_GET['id'] ?? 0;
+$voucher_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+
 if (!$voucher_id) {
     header("Location: purchase_vouchers_list.php");
     exit;
 }
 
 // Fetch voucher details
-$voucher = $conn->query("SELECT * FROM vouchers WHERE voucher_id = $voucher_id")->fetch_assoc();
+$voucher = [];
+$stmt = $conn->prepare("SELECT * FROM vouchers WHERE voucher_id = ?");
+$stmt->bind_param("i", $voucher_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$voucher = $result->fetch_assoc();
+$stmt->close();
+
 if (!$voucher) {
     header("Location: purchase_vouchers_list.php");
     exit;
 }
 
 // Fetch all transactions for this voucher
-$transactions = $conn->query("SELECT * FROM transactions WHERE voucher_id = $voucher_id");
+$transactions = [];
+$stmt = $conn->prepare("SELECT * FROM transactions WHERE voucher_id = ?");
+$stmt->bind_param("i", $voucher_id);
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    $transactions[] = $row;
+}
+$stmt->close();
+
+// Separate credit and debit transactions
+$credit_entry = array_filter($transactions, function($txn) { return $txn['transaction_type'] == 'Credit'; });
+$credit_entry = reset($credit_entry); // Get first credit entry
+$debit_entries = array_filter($transactions, function($txn) { return $txn['transaction_type'] == 'Debit'; });
 
 // Get all ledgers
 $ledgers = $conn->query("SELECT * FROM ledgers ORDER BY ledger_name ASC");
-
-// Determine credit ledger (party or cash/bank)
-$credit_ledger_id = 0;
-$mode_of_payment = 'Credit';
-foreach ($transactions as $txn) {
-    if ($txn['transaction_type'] == 'Credit') {
-        $credit_ledger_id = $txn['ledger_id'];
-        $mode_of_payment = $txn['mode_of_payment'];
-        break;
-    }
-}
-
-// Get debit transactions (purchase entries)
-$debit_transactions = [];
-foreach ($transactions as $txn) {
-    if ($txn['transaction_type'] == 'Debit') {
-        $debit_transactions[] = $txn;
-    }
-}
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
     $voucher_number = trim($_POST['voucher_number']);
@@ -55,6 +56,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
     $mode_of_payment = $_POST['mode_of_payment'];
     $reference_number = $_POST['reference_number'] ?? null;
     $narration = $_POST['debit_narration'] ?? [];
+    $voucher_type = 'Purchase';
 
     if ($mode_of_payment === 'Credit') {
         $credit_ledger_id = $_POST['party_ledger_id'] ?? null;
@@ -64,8 +66,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
 
     $debit_ledgers = $_POST['debit_ledger_id'] ?? [];
     $debit_amounts = $_POST['debit_amount'] ?? [];
+    $transaction_ids = $_POST['transaction_id'] ?? [];
 
-    // Validation
     if (empty($voucher_number)) $errors[] = "Voucher number missing.";
     if (empty($voucher_date)) $errors[] = "Date is required.";
     if (empty($credit_ledger_id)) $errors[] = "Please select a party/cash/bank account.";
@@ -88,118 +90,306 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
         $conn->begin_transaction();
 
         try {
-            // Update Voucher
-            $stmt = $conn->prepare("UPDATE vouchers SET voucher_number = ?, reference_number = ?, voucher_date = ?, total_amount = ? WHERE voucher_id = ?");
-            $stmt->bind_param("sssdi", $voucher_number, $reference_number, $voucher_date, $total_amount, $voucher_id);
+            // === Update Voucher ===
+            $old_voucher_data = [
+                'voucher_number' => $voucher['voucher_number'],
+                'voucher_date' => $voucher['voucher_date'],
+                'total_amount' => $voucher['total_amount'],
+                'reference_number' => $voucher['reference_number']
+            ];
+            
+            $stmt = $conn->prepare("UPDATE vouchers SET 
+                                  voucher_number = ?, 
+                                  voucher_date = ?, 
+                                  total_amount = ?,
+                                  reference_number = ?,
+                                  updated_at = NOW()
+                                  WHERE voucher_id = ?");
+            $stmt->bind_param("ssdsi", $voucher_number, $voucher_date, $total_amount, $reference_number, $voucher_id);
             $stmt->execute();
             $stmt->close();
-
+            
             // Log voucher update
-            $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) 
-            VALUES (?, 'vouchers', ?, 'UPDATE', ?, ?)");
-            $old_value = json_encode($voucher);
-            $new_value = json_encode([
+            $new_voucher_data = [
                 'voucher_number' => $voucher_number,
-                'reference_number' => $reference_number,
                 'voucher_date' => $voucher_date,
-                'total_amount' => $total_amount
-            ]);
-            $log_stmt->bind_param("iiss", $user_id, $voucher_id, $old_value, $new_value);
+                'total_amount' => $total_amount,
+                'reference_number' => $reference_number
+            ];
+            
+            $log_stmt = $conn->prepare("INSERT INTO audit_logs 
+                                      (user_id, table_name, record_id, action, old_value, new_value) 
+                                      VALUES (?, 'vouchers', ?, 'UPDATE', ?, ?)");
+            $log_stmt->bind_param("iiss", 
+                $user_id, 
+                $voucher_id, 
+                json_encode($old_voucher_data),
+                json_encode($new_voucher_data));
             $log_stmt->execute();
             $log_stmt->close();
 
-            // Delete old transactions (we'll recreate them)
-            $conn->query("DELETE FROM transactions WHERE voucher_id = $voucher_id");
-
-            $narration_summary = "Purchase made to ledger ID: $credit_ledger_id";
-
-            // Credit Entry (Party/Cash/Bank)
+            // === Process Credit Entry ===
+            $old_credit_data = [
+                'ledger_id' => $credit_entry['ledger_id'],
+                'amount' => $credit_entry['amount'],
+                'closing_balance' => $credit_entry['closing_balance'],
+                'mode_of_payment' => $credit_entry['mode_of_payment']
+            ];
+            
+            // Get current balance of the credit ledger
             $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
             $stmt->bind_param("i", $credit_ledger_id);
             $stmt->execute();
-            $stmt->bind_result($acc_code, $cur_bal, $dc_type);
+            $stmt->bind_result($acc_code, $current_balance, $dc_type);
             $stmt->fetch();
             $stmt->close();
-
-            $new_balance = ($dc_type === 'Debit') ? $cur_bal - $total_amount : $cur_bal + $total_amount;
-
+            
+            // Calculate new balance
+            $new_credit_balance = ($dc_type === 'Debit') ? 
+                $current_balance - $total_amount : 
+                $current_balance + $total_amount;
+            
             $opposite_ledger_ids = implode(',', $debit_ledgers);
-
-            $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) 
-            VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?, ?, ?)");
-            $txn_stmt->bind_param("iiisdsssss", $user_id, $voucher_id, $credit_ledger_id, $acc_code, $total_amount, $new_balance, $mode_of_payment, $opposite_ledger_ids, $voucher_date, $narration_summary);
-            $txn_stmt->execute();
-            $txn_id = $txn_stmt->insert_id;
-            $txn_stmt->close();
-
-            // Log credit entry
-            $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) VALUES (?, 'transactions', ?, 'INSERT', NULL, ?)");
-            $new_value = json_encode([
-                'voucher_id' => $voucher_id,
+            $narration_summary = "Purchase made to ledger ID: $credit_ledger_id";
+            
+            $stmt = $conn->prepare("UPDATE transactions SET
+                                  ledger_id = ?,
+                                  acc_code = ?,
+                                  amount = ?,
+                                  closing_balance = ?,
+                                  mode_of_payment = ?,
+                                  opposite_ledger = ?,
+                                  transaction_date = ?,
+                                  narration = ?,
+                                  updated_at = NOW()
+                                  WHERE transaction_id = ?");
+            $stmt->bind_param("isdsssssi", 
+                $credit_ledger_id,
+                $acc_code,
+                $total_amount,
+                $new_credit_balance,
+                $mode_of_payment,
+                $opposite_ledger_ids,
+                $voucher_date,
+                $narration_summary,
+                $credit_entry['transaction_id']);
+            $stmt->execute();
+            $stmt->close();
+            
+            // Log credit transaction update
+            $new_credit_data = [
                 'ledger_id' => $credit_ledger_id,
                 'amount' => $total_amount,
-                'type' => 'Credit',
-                'closing_balance' => $new_balance
-            ]);
-            $log_stmt->bind_param("iis", $user_id, $txn_id, $new_value);
+                'closing_balance' => $new_credit_balance,
+                'mode_of_payment' => $mode_of_payment
+            ];
+            
+            $log_stmt = $conn->prepare("INSERT INTO audit_logs 
+                                      (user_id, table_name, record_id, action, old_value, new_value) 
+                                      VALUES (?, 'transactions', ?, 'UPDATE', ?, ?)");
+            $log_stmt->bind_param("iiss", 
+                $user_id, 
+                $credit_entry['transaction_id'], 
+                json_encode($old_credit_data),
+                json_encode($new_credit_data));
             $log_stmt->execute();
             $log_stmt->close();
-
+            
             // Update credit ledger balance
-            $update_stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
-            $update_stmt->bind_param("di", $new_balance, $credit_ledger_id);
-            $update_stmt->execute();
+            $stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
+            $stmt->bind_param("di", $new_credit_balance, $credit_ledger_id);
+            $stmt->execute();
+            $stmt->close();
 
-            // Debit Entries (Purchase Ledgers)
+            // === Process Debit Entries ===
             foreach ($debit_ledgers as $i => $ledger_id) {
                 $amount = (float)$debit_amounts[$i];
                 $nar = (string)$narration[$i] ?? '';
-
-                $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
-                $stmt->bind_param("i", $ledger_id);
+                $txn_id = isset($transaction_ids[$i]) ? $transaction_ids[$i] : 0;
+                
+                if ($txn_id > 0) {
+                    // Update existing debit transaction
+                    // First get old transaction data for audit log
+                    $stmt = $conn->prepare("SELECT * FROM transactions WHERE transaction_id = ?");
+                    $stmt->bind_param("i", $txn_id);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    $old_txn = $result->fetch_assoc();
+                    $stmt->close();
+                    
+                    $old_debit_data = [
+                        'ledger_id' => $old_txn['ledger_id'],
+                        'amount' => $old_txn['amount'],
+                        'closing_balance' => $old_txn['closing_balance'],
+                        'narration' => $old_txn['narration']
+                    ];
+                    
+                    // Get current balance of the debit ledger
+                    $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
+                    $stmt->bind_param("i", $ledger_id);
+                    $stmt->execute();
+                    $stmt->bind_result($acc_code, $current_balance, $dc_type);
+                    $stmt->fetch();
+                    $stmt->close();
+                    
+                    $new_debit_balance = ($dc_type === 'Debit') ? 
+                        $current_balance + $amount : 
+                        $current_balance - $amount;
+                    
+                    $stmt = $conn->prepare("UPDATE transactions SET 
+                                          ledger_id = ?, 
+                                          acc_code = ?,
+                                          amount = ?, 
+                                          closing_balance = ?, 
+                                          mode_of_payment = ?,
+                                          opposite_ledger = ?, 
+                                          transaction_date = ?, 
+                                          narration = ?,
+                                          updated_at = NOW()
+                                          WHERE transaction_id = ?");
+                    $stmt->bind_param("isdsssssi", 
+                        $ledger_id,
+                        $acc_code,
+                        $amount,
+                        $new_debit_balance,
+                        $mode_of_payment,
+                        $credit_ledger_id,
+                        $voucher_date,
+                        $nar,
+                        $txn_id);
+                    $stmt->execute();
+                    $stmt->close();
+                    
+                    // Log debit transaction update
+                    $new_debit_data = [
+                        'ledger_id' => $ledger_id,
+                        'amount' => $amount,
+                        'closing_balance' => $new_debit_balance,
+                        'narration' => $nar
+                    ];
+                    
+                    $log_stmt = $conn->prepare("INSERT INTO audit_logs 
+                                              (user_id, table_name, record_id, action, old_value, new_value) 
+                                              VALUES (?, 'transactions', ?, 'UPDATE', ?, ?)");
+                    $log_stmt->bind_param("iiss", 
+                        $user_id, 
+                        $txn_id, 
+                        json_encode($old_debit_data),
+                        json_encode($new_debit_data));
+                    $log_stmt->execute();
+                    $log_stmt->close();
+                } else {
+                    // Insert new debit transaction
+                    $stmt = $conn->prepare("SELECT acc_code, current_balance, debit_credit FROM ledgers WHERE ledger_id = ?");
+                    $stmt->bind_param("i", $ledger_id);
+                    $stmt->execute();
+                    $stmt->bind_result($acc_code, $current_balance, $dc_type);
+                    $stmt->fetch();
+                    $stmt->close();
+                    
+                    $new_debit_balance = ($dc_type === 'Debit') ? 
+                        $current_balance + $amount : 
+                        $current_balance - $amount;
+                    
+                    $stmt = $conn->prepare("INSERT INTO transactions 
+                                          (user_id, voucher_id, ledger_id, acc_code, transaction_type, 
+                                           amount, closing_balance, mode_of_payment, opposite_ledger, 
+                                           transaction_date, narration)
+                                          VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param("iiisdsssss", 
+                        $user_id,
+                        $voucher_id,
+                        $ledger_id,
+                        $acc_code,
+                        $amount,
+                        $new_debit_balance,
+                        $mode_of_payment,
+                        $credit_ledger_id,
+                        $voucher_date,
+                        $nar);
+                    $stmt->execute();
+                    $txn_id = $stmt->insert_id;
+                    $stmt->close();
+                    
+                    // Log new transaction
+                    $log_stmt = $conn->prepare("INSERT INTO audit_logs 
+                                              (user_id, table_name, record_id, action, old_value, new_value) 
+                                              VALUES (?, 'transactions', ?, 'INSERT', NULL, ?)");
+                    $log_stmt->bind_param("iis", 
+                        $user_id, 
+                        $txn_id, 
+                        json_encode([
+                            'voucher_id' => $voucher_id,
+                            'ledger_id' => $ledger_id,
+                            'amount' => $amount,
+                            'type' => 'Debit'
+                        ]));
+                    $log_stmt->execute();
+                    $log_stmt->close();
+                }
+                
+                // Update debit ledger balance
+                $stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
+                $stmt->bind_param("di", $new_debit_balance, $ledger_id);
                 $stmt->execute();
-                $stmt->bind_result($acc_code, $cur_bal, $dc_type);
-                $stmt->fetch();
                 $stmt->close();
-
-                $new_bal = ($dc_type === 'Debit') ? $cur_bal + $amount : $cur_bal - $amount;
-
-                $txn_stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, opposite_ledger, transaction_date, narration) 
-                VALUES (?, ?, ?, ?, 'Debit', ?, ?, ?, ?, ?, ?)");
-                $txn_stmt->bind_param("iiisdssiss", $user_id, $voucher_id, $ledger_id, $acc_code, $amount, $new_bal, $mode_of_payment, $credit_ledger_id, $voucher_date, $nar);
-                $txn_stmt->execute();
-                $txn_id = $txn_stmt->insert_id;
-                $txn_stmt->close();
-
-                // Log debit entry
-                $log_stmt = $conn->prepare("INSERT INTO audit_logs (user_id, table_name, record_id, action, old_value, new_value) VALUES (?, 'transactions', ?, 'INSERT', NULL, ?)");
-                $new_value = json_encode([
-                    'voucher_id' => $voucher_id,
-                    'ledger_id' => $ledger_id,
-                    'amount' => $amount,
-                    'type' => 'Debit',
-                    'closing_balance' => $new_bal
-                ]);
-                $log_stmt->bind_param("iis", $user_id, $txn_id, $new_value);
-                $log_stmt->execute();
-                $log_stmt->close();
-
-                $update_stmt = $conn->prepare("UPDATE ledgers SET current_balance = ? WHERE ledger_id = ?");
-                $update_stmt->bind_param("di", $new_bal, $ledger_id);
-                $update_stmt->execute();
+            }
+            
+            // Delete any removed debit transactions
+            $existing_debit_ids = array_filter($transaction_ids, function($id) { return $id > 0; });
+            if (!empty($existing_debit_ids)) {
+                $placeholders = implode(',', array_fill(0, count($existing_debit_ids), '?'));
+                $types = str_repeat('i', count($existing_debit_ids));
+                
+                // First log the deletions
+                $stmt = $conn->prepare("SELECT * FROM transactions 
+                                      WHERE voucher_id = ? 
+                                      AND transaction_type = 'Debit'
+                                      AND transaction_id NOT IN ($placeholders)");
+                $params = array_merge([$voucher_id], $existing_debit_ids);
+                $stmt->bind_param(str_repeat('i', count($params)), ...$params);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $deleted_transactions = $result->fetch_all(MYSQLI_ASSOC);
+                $stmt->close();
+                
+                foreach ($deleted_transactions as $deleted_txn) {
+                    $log_stmt = $conn->prepare("INSERT INTO audit_logs 
+                                              (user_id, table_name, record_id, action, old_value, new_value) 
+                                              VALUES (?, 'transactions', ?, 'DELETE', ?, NULL)");
+                    $log_stmt->bind_param("iis", 
+                        $user_id, 
+                        $deleted_txn['transaction_id'], 
+                        json_encode([
+                            'ledger_id' => $deleted_txn['ledger_id'],
+                            'amount' => $deleted_txn['amount']
+                        ]));
+                    $log_stmt->execute();
+                    $log_stmt->close();
+                }
+                
+                // Then delete the transactions
+                $stmt = $conn->prepare("DELETE FROM transactions 
+                                      WHERE voucher_id = ? 
+                                      AND transaction_type = 'Debit'
+                                      AND transaction_id NOT IN ($placeholders)");
+                $stmt->bind_param(str_repeat('i', count($params)), ...$params);
+                $stmt->execute();
+                $stmt->close();
             }
 
             $conn->commit();
-            $successMessage = "Purchase voucher updated successfully!";
-            header("Location: purchase_vouchers_list.php");
+            $_SESSION['success_message'] = "Purchase voucher updated successfully!";
+            header("Location: edit_purchase.php");
             exit;
-
         } catch (Exception $e) {
             $conn->rollback();
-            $errors[] = "Error: " . $e->getMessage();
+            $errors[] = "Transaction failed: " . $e->getMessage();
         }
     }
 }
+
+$display_date = date('d-M-Y');
 ?>
 
 <!DOCTYPE html>
@@ -215,6 +405,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .balance-box {
+            font-size: 0.8em;
+            margin-top: 3px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+    </style>
 </head>
 <body>
     <!-- Navbar -->
@@ -248,7 +446,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
     <div class="voucher-header">
         <h2>Edit Purchase Voucher</h2>
         <h3><?php echo $company_db ?></h3>
-        <div class="current-date"><?= date('d-M-Y') ?></div>
+        <div class="current-date"><?= $display_date ?></div>
     </div>
 
     <?php if (!empty($errors)): ?>
@@ -264,6 +462,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
         <?= htmlspecialchars($successMessage) ?>
     </div>
     <script>
+        // Auto-hide the success message after 4 seconds
         setTimeout(function() {
             const msg = document.getElementById('successMessage');
             if (msg) {
@@ -275,7 +474,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
     </script>
     <?php endif; ?>
 
-    <form id="editForm" method="POST" onsubmit="return validateForm()" class="voucher-form" autocomplete="off">
+    <form method="POST" id="PurchaseVoucherForm" onsubmit="return validateForm()" class="voucher-form" autocomplete="off">
         <div class="form-row">
             <div class="form-group">
                 <label>Voucher No:</label>
@@ -287,15 +486,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
             </div>
         </div>
 
+        <input type="hidden" name="voucher_type" value="Purchase">
+
         <div class="form-row">
             <!-- Supplier Ledger for Credit Purchase -->
-            <div class="form-group" id="creditPartySection" style="<?= $mode_of_payment !== 'Credit' ? 'display:none;' : '' ?>">
+            <div class="form-group" id="creditPartySection" style="<?= ($credit_entry['mode_of_payment'] === 'Credit' ? '' : 'display:none;') ?>">
                 <label>Supplier Ledger (Sundry Creditors):</label>
                 <select name="party_ledger_id" id="party_ledger" class="form-control" onchange="fetchBalance(this, 'party_balance');updateDebitLedgers()">
                     <option value="">--Select Supplier--</option>
                     <?php foreach ($ledgers as $ledger): ?>
                         <?php if ($ledger['group_id'] === '24'): ?>
-                            <option value="<?= $ledger['ledger_id'] ?>" <?= $ledger['ledger_id'] == $credit_ledger_id ? 'selected' : '' ?>>
+                            <option value="<?= $ledger['ledger_id'] ?>" <?= ($credit_entry['ledger_id'] == $ledger['ledger_id'] ? 'selected' : '') ?>>
                                 <?= $ledger['ledger_name'] ?>
                             </option>
                         <?php endif; ?>
@@ -305,13 +506,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
             </div>
 
             <!-- Cash/Bank Ledger for Cash/Bank Purchase -->
-            <div class="form-group" id="cashBankSection" style="<?= $mode_of_payment === 'Credit' ? 'display:none;' : '' ?>">
+            <div class="form-group" id="cashBankSection" style="<?= ($credit_entry['mode_of_payment'] !== 'Credit' ? '' : 'display:none;') ?>">
                 <label>Paid From (Cash/Bank Ledger):</label>
                 <select name="cashbank_ledger_id" id="cashbank_ledger" class="form-control" onchange="fetchBalance(this, 'cashbank_balance');updateDebitLedgers();">
                     <option value="">--Select Ledger--</option>
                     <?php foreach ($ledgers as $ledger): ?>
                         <?php if (($ledger['acc_type'] === 'Asset') && ($ledger['book_type'] === 'Cash' || $ledger['book_type'] === 'Bank')):?>
-                            <option value="<?= $ledger['ledger_id'] ?>" <?= $ledger['ledger_id'] == $credit_ledger_id ? 'selected' : '' ?>>
+                            <option value="<?= $ledger['ledger_id'] ?>" <?= ($credit_entry['ledger_id'] == $ledger['ledger_id'] ? 'selected' : '') ?>>
                                 <?= $ledger['ledger_name'] ?>
                             </option>
                         <?php endif; ?>
@@ -324,16 +525,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
             <div class="form-group">
                 <label>Mode of Sale:</label>
                 <select name="mode_of_payment" id="mode_of_payment" class="form-control" onchange="toggleLedgerFields(this.value)">
-                    <option value="Credit" <?= $mode_of_payment === 'Credit' ? 'selected' : '' ?>>Credit</option>
-                    <option value="Cash" <?= $mode_of_payment === 'Cash' ? 'selected' : '' ?>>Cash</option>
-                    <option value="Bank" <?= $mode_of_payment === 'Bank' ? 'selected' : '' ?>>Bank</option>
-                    <option value="Cheque" <?= $mode_of_payment === 'Cheque' ? 'selected' : '' ?>>Cheque</option>
+                    <option value="Credit" <?= ($credit_entry['mode_of_payment'] === 'Credit' ? 'selected' : '') ?>>Credit</option>
+                    <option value="Cash" <?= ($credit_entry['mode_of_payment'] === 'Cash' ? 'selected' : '') ?>>Cash</option>
+                    <option value="Bank" <?= ($credit_entry['mode_of_payment'] === 'Bank' ? 'selected' : '') ?>>Bank</option>
+                    <option value="Cheque" <?= ($credit_entry['mode_of_payment'] === 'Cheque' ? 'selected' : '') ?>>Cheque</option>
                 </select>
             </div>
         </div>
 
         <!-- Reference Section -->
-        <div id="refFields" style="<?= $mode_of_payment === 'Cheque' ? '' : 'display:none;' ?>">
+        <div id="refFields" style="<?= ($credit_entry['mode_of_payment'] === 'Cheque' ? '' : 'display:none;') ?>">
             <div class="form-row">
                 <div class="form-group">
                     <label>Invoice No / Ref No:</label>
@@ -341,11 +542,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
                 </div>
                 <div class="form-group">
                     <label>Reference Date:</label>
-                    <input type="date" name="reference_date" class="form-control" style="width: 70%;" value="<?= htmlspecialchars($voucher['reference_date']) ?>">
+                    <input type="date" name="reference_date" class="form-control" style="width: 70%;" value="<?= htmlspecialchars($credit_entry['transaction_date']) ?>">
                 </div>
                 <div class="form-group">
                     <label>Bank Name:</label>
-                    <input type="text" name="bank_name" class="form-control" style="width: 70%;" value="<?= htmlspecialchars($voucher['bank_name']) ?>">
+                    <input type="text" name="bank_name" class="form-control" style="width: 70%;" value="<?= htmlspecialchars($credit_entry['narration']) ?>">
                 </div>
             </div>
         </div>
@@ -363,31 +564,54 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($debit_transactions as $index => $txn): ?>
-                        <tr>
-                            <td>
-                                <select name="debit_ledger_id[]" class="form-control" onchange="fetchBalance(this, 'debit_balance_<?= $index ?>')" required>
-                                    <option value="">--Select--</option>
-                                    <?php foreach ($ledgers as $ledger): ?>
-                                        <?php if (($ledger['acc_type'] === 'Expense' || ($ledger['acc_type'] === 'Asset' && !in_array($ledger['book_type'], ['Cash', 'Bank']))) &&
-                                                $ledger['ledger_id'] != $credit_ledger_id): ?>
-                                            <option value="<?= $ledger['ledger_id'] ?>" <?= $ledger['ledger_id'] == $txn['ledger_id'] ? 'selected' : '' ?>>
-                                                <?= $ledger['ledger_name'] ?>
-                                            </option>
-                                        <?php endif; ?>
-                                    <?php endforeach; ?>
-                                </select>
-                                <div id="debit_balance_<?= $index ?>" class="balance-box"></div>
-                            </td>
-                            <td><input type="number" name="debit_amount[]" class="form-control" step="0.01" min="0.01" value="<?= htmlspecialchars($txn['amount']) ?>" required></td>
-                            <td><input type="text" name="debit_narration[]" class="form-control" value="<?= htmlspecialchars($txn['narration']) ?>"></td>
-                            <td>
-                                <button type="button" class="btn btn-outline-danger" onclick="this.closest('tr').remove()">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
+                    <?php foreach ($debit_entries as $index => $entry): ?>
+                    <tr>
+                        <td>
+                            <select name="debit_ledger_id[]" class="form-control" onchange="fetchBalance(this, 'debit_balance_<?= $index ?>')" required>
+                                <option value="">--Select--</option>
+                                <?php foreach ($ledgers as $ledger): ?>
+                                    <?php if (($ledger['acc_type'] === 'Expense' || ($ledger['acc_type'] === 'Asset' && !in_array($ledger['book_type'], ['Cash', 'Bank']))) &&
+                                              $ledger['ledger_id'] != $credit_entry['ledger_id']): ?>
+                                        <option value="<?= $ledger['ledger_id'] ?>" <?= ($entry['ledger_id'] == $ledger['ledger_id'] ? 'selected' : '') ?>>
+                                            <?= $ledger['ledger_name'] ?>
+                                        </option>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </select>
+                            <div id="debit_balance_<?= $index ?>" class="balance-box"></div>
+                        </td>
+                        <td><input type="number" name="debit_amount[]" class="form-control" step="0.01" min="0.01" value="<?= htmlspecialchars($entry['amount']) ?>" required></td>
+                        <td><input type="text" name="debit_narration[]" class="form-control" value="<?= htmlspecialchars($entry['narration']) ?>"></td>
+                        <td>
+                            <input type="hidden" name="transaction_id[]" value="<?= $entry['transaction_id'] ?>">
+                            <button type="button" class="btn btn-outline-danger" onclick="this.closest('tr').remove()">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
                     <?php endforeach; ?>
+                    <?php if (empty($debit_entries)): ?>
+                    <tr>
+                        <td>
+                            <select name="debit_ledger_id[]" class="form-control" onchange="fetchBalance(this, 'debit_balance_0')" required>
+                                <option value="">--Select--</option>
+                                <?php foreach ($ledgers as $ledger): ?>
+                                    <?php if (($ledger['acc_type'] === 'Expense' || ($ledger['acc_type'] === 'Asset' && !in_array($ledger['book_type'], ['Cash', 'Bank'])))): ?>
+                                        <option value="<?= $ledger['ledger_id'] ?>"><?= $ledger['ledger_name'] ?></option>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </select>
+                            <div id="debit_balance_0" class="balance-box"></div>
+                        </td>
+                        <td><input type="number" name="debit_amount[]" class="form-control" step="0.01" min="0.01" required></td>
+                        <td><input type="text" name="debit_narration[]" class="form-control"></td>
+                        <td>
+                            <button type="button" class="btn btn-outline-danger" onclick="this.closest('tr').remove()">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                 </tbody>  
             </table>
 
@@ -403,7 +627,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)) {
 </div>
 
 <script>
-// Same JavaScript functions as in the create page
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize ledger balances
+    if (document.getElementById('party_ledger').value) {
+        fetchBalance(document.getElementById('party_ledger'), 'party_balance');
+    }
+    if (document.getElementById('cashbank_ledger').value) {
+        fetchBalance(document.getElementById('cashbank_ledger'), 'cashbank_balance');
+    }
+    
+    // Initialize debit ledger balances
+    document.querySelectorAll('select[name="debit_ledger_id[]"]').forEach((select, index) => {
+        if (select.value) {
+            fetchBalance(select, `debit_balance_${index}`);
+        }
+    });
+});
+
 function toggleLedgerFields(mode) {
     const partySection = document.getElementById('creditPartySection');
     const cashBankSection = document.getElementById('cashBankSection');
@@ -412,12 +652,12 @@ function toggleLedgerFields(mode) {
     if (mode === 'Credit') {
         partySection.style.display = 'block';
         cashBankSection.style.display = 'none';
+        refFields.style.display = 'none';
     } else {
         partySection.style.display = 'none';
         cashBankSection.style.display = 'block';
+        refFields.style.display = mode === 'Cheque' ? 'block' : 'none';
     }
-
-    refFields.style.display = mode === 'Cheque' ? 'block' : 'none';
 }
 
 function addRow() {
@@ -446,10 +686,9 @@ function addRow() {
 }
 
 function updateDebitLedgers() {
-    const mode = document.getElementById('mode_of_payment').value;
-    const creditLedgerId = mode === 'Credit' 
-        ? document.getElementById('party_ledger').value 
-        : document.getElementById('cashbank_ledger').value;
+    const creditLedgerId = document.getElementById('mode_of_payment').value === 'Credit' ? 
+        document.getElementById('party_ledger').value : 
+        document.getElementById('cashbank_ledger').value;
     
     const debitSelects = document.querySelectorAll('select[name="debit_ledger_id[]"]');
     
@@ -460,11 +699,10 @@ function updateDebitLedgers() {
         // Clear and rebuild options
         select.innerHTML = '<option value="">--Select--</option>';
         
-        // Add filtered options
+        // Add filtered options (using PHP-generated data)
         <?php foreach ($ledgers as $ledger): ?>
             <?php if (($ledger['acc_type'] === 'Expense' || ($ledger['acc_type'] === 'Asset' && 
-                      !in_array($ledger['book_type'], ['Cash', 'Bank']))) &&
-                      $ledger['ledger_id'] != $credit_ledger_id): ?>
+                      !in_array($ledger['book_type'], ['Cash', 'Bank'])))): ?>
                 if (<?= $ledger['ledger_id'] ?> != creditLedgerId) {
                     const option = new Option(
                         '<?= $ledger['ledger_name'] ?>', 
@@ -511,10 +749,12 @@ function fetchBalance(selectEl, targetId) {
 }
 
 function validateForm() {
-    let mode = document.querySelector('select[name="mode_of_payment"]').value;
-    let creditLedger = mode === 'Credit' 
-        ? document.querySelector('select[name="party_ledger_id"]')
-        : document.querySelector('select[name="cashbank_ledger_id"]');
+    let creditLedger;
+    if (document.getElementById('mode_of_payment').value === 'Credit') {
+        creditLedger = document.getElementById('party_ledger');
+    } else {
+        creditLedger = document.getElementById('cashbank_ledger');
+    }
     
     let debitLedgers = document.querySelectorAll('select[name="debit_ledger_id[]"]');
     let errors = [];
@@ -576,21 +816,7 @@ function validateForm() {
     
     return true;
 }
-
-// Initialize balances on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Fetch balances for all select elements
-    const selects = document.querySelectorAll('select');
-    selects.forEach(select => {
-        const targetId = select.getAttribute('data-target') || 
-                        (select.name === 'party_ledger_id' ? 'party_balance' : 
-                         select.name === 'cashbank_ledger_id' ? 'cashbank_balance' : null);
-        
-        if (targetId && select.value) {
-            fetchBalance(select, targetId);
-        }
-    });
-});
 </script>
+
 </body>
 </html>

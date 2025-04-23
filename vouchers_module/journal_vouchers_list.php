@@ -1,62 +1,80 @@
 <?php
 include '../database/findb.php';
 
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+// Check user session and permissions
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../login.php");
+    exit;
+}
 
-$user_id = $_SESSION['user_id'] ?? 0;
-$company_db = $_SESSION['company_name'];
-$successMessage = $_GET['success'] ?? '';
-
-// Pagination
+// Pagination setup
+$records_per_page = 7;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$perPage = 15;
-$offset = ($page - 1) * $perPage;
+$offset = ($page - 1) * $records_per_page;
 
-// Search and filter
-$search = $_GET['search'] ?? '';
-$from_date = $_GET['from_date'] ?? '';
-$to_date = $_GET['to_date'] ?? '';
-
-// Base query
-$query = "SELECT v.*, GROUP_CONCAT(t.ledger_id SEPARATOR ',') as ledger_ids 
-          FROM vouchers v
-          JOIN transactions t ON v.voucher_id = t.voucher_id
-          WHERE v.voucher_type = 'Journal'";
-
-// Add search conditions
-if (!empty($search)) {
-    $query .= " AND (v.voucher_number LIKE '%$search%' OR v.reference_number LIKE '%$search%')";
+// Date filter setup
+$date_filter = isset($_GET['date_filter']) ? $_GET['date_filter'] : '';
+$where_clause = "WHERE v.voucher_type = 'Journal'";
+if (!empty($date_filter)) {
+    $where_clause .= " AND DATE(v.voucher_date) = '$date_filter'";
 }
 
-// Add date filter
-if (!empty($from_date) && !empty($to_date)) {
-    $query .= " AND v.voucher_date BETWEEN '$from_date' AND '$to_date'";
-} elseif (!empty($from_date)) {
-    $query .= " AND v.voucher_date >= '$from_date'";
-} elseif (!empty($to_date)) {
-    $query .= " AND v.voucher_date <= '$to_date'";
+// Get total count for pagination
+$count_stmt = $conn->prepare("SELECT COUNT(DISTINCT v.voucher_id) as total 
+                             FROM vouchers v
+                             $where_clause");
+$count_stmt->execute();
+$total_result = $count_stmt->get_result();
+$total_rows = $total_result->fetch_assoc()['total'];
+$total_pages = ceil($total_rows / $records_per_page);
+$count_stmt->close();
+
+// Fetch journal vouchers with pagination
+$stmt = $conn->prepare("SELECT v.voucher_id, v.voucher_number, v.voucher_date, v.total_amount
+                       FROM vouchers v
+                       $where_clause
+                       ORDER BY v.voucher_date DESC, v.voucher_number DESC
+                       LIMIT $offset, $records_per_page");
+$stmt->execute();
+$result = $stmt->get_result();
+$vouchers = $result->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
+
+// For each voucher, get the debit and credit ledgers for display
+foreach ($vouchers as &$voucher) {
+    // Get debit ledgers
+    $stmt = $conn->prepare("SELECT l.ledger_name 
+                           FROM transactions t
+                           JOIN ledgers l ON t.ledger_id = l.ledger_id
+                           WHERE t.voucher_id = ? AND t.transaction_type = 'Debit'");
+    $stmt->bind_param("i", $voucher['voucher_id']);
+    $stmt->execute();
+    $debit_result = $stmt->get_result();
+    $voucher['debit_ledgers'] = $debit_result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    
+    // Get credit ledgers
+    $stmt = $conn->prepare("SELECT l.ledger_name 
+                           FROM transactions t
+                           JOIN ledgers l ON t.ledger_id = l.ledger_id
+                           WHERE t.voucher_id = ? AND t.transaction_type = 'Credit'");
+    $stmt->bind_param("i", $voucher['voucher_id']);
+    $stmt->execute();
+    $credit_result = $stmt->get_result();
+    $voucher['credit_ledgers'] = $credit_result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+}
+unset($voucher); // Break the reference
+
+// Display success message if redirected from edit/delete
+$successMessage = '';
+if (isset($_SESSION['success_message'])) {
+    $successMessage = $_SESSION['success_message'];
+    unset($_SESSION['success_message']);
 }
 
-// Complete query with grouping and pagination
-$query .= " GROUP BY v.voucher_id ORDER BY v.voucher_date DESC, v.voucher_number DESC LIMIT $offset, $perPage";
-
-$vouchers = $conn->query($query);
-
-// Count total records for pagination
-$countQuery = "SELECT COUNT(DISTINCT v.voucher_id) as total FROM vouchers v WHERE v.voucher_type = 'Journal'";
-if (!empty($search)) {
-    $countQuery .= " AND (v.voucher_number LIKE '%$search%' OR v.reference_number LIKE '%$search%')";
-}
-if (!empty($from_date) && !empty($to_date)) {
-    $countQuery .= " AND v.voucher_date BETWEEN '$from_date' AND '$to_date'";
-}
-$totalResult = $conn->query($countQuery)->fetch_assoc();
-$total = $totalResult['total'];
-$totalPages = ceil($total / $perPage);
+$display_date = date('d-M-Y');
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -64,66 +82,18 @@ $totalPages = ceil($total / $perPage);
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="stylesheet" href="../styles/list_style.css">
-    <link rel="stylesheet" href="../styles/tally_style.css">
+    <link rel="stylesheet" href="../styles/voucher_list_style.css">
     <link rel="stylesheet" href="../styles/navbar_style.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
-        .action-buttons {
-            display: flex;
-            gap: 5px;
+        .ledger-list {
+            font-size: 0.9em;
         }
-        .action-buttons a {
-            padding: 3px 8px;
-            border-radius: 4px;
-            text-decoration: none;
-        }
-        .view-btn {
-            background-color: #17a2b8;
-            color: white;
-        }
-        .edit-btn {
-            background-color: #ffc107;
-            color: black;
-        }
-        .delete-btn {
-            background-color: #dc3545;
-            color: white;
-        }
-        .search-container {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .search-container input, .search-container button {
-            padding: 8px 12px;
-        }
-        .date-filters {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        .pagination {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
-            gap: 5px;
-        }
-        .pagination a, .pagination span {
-            padding: 5px 10px;
-            border: 1px solid #ddd;
-            text-decoration: none;
-        }
-        .pagination a:hover {
-            background-color: #f0f0f0;
-        }
-        .pagination .current {
-            background-color: #007bff;
-            color: white;
-            border-color: #007bff;
+        .ledger-list span {
+            display: inline-block;
+            margin-right: 8px;
+            margin-bottom: 4px;
         }
     </style>
 </head>
@@ -154,133 +124,143 @@ $totalPages = ceil($total / $perPage);
             </li>
         </ul>
     </nav>
-
-<div class="container">
-    <div class="header">
-        <h2>Journal Vouchers</h2>
-        <h3><?php echo $company_db ?></h3>
-        <div class="current-date"><?= date('d-M-Y') ?></div>
-    </div>
-
-    <?php if (!empty($successMessage)): ?>
-        <div class="success-message">
-            <?= htmlspecialchars($successMessage) ?>
-        </div>
-    <?php endif; ?>
-
-    <div class="search-container">
-        <form method="get" action="journal_vouchers_list.php" class="search-form">
-            <input type="text" name="search" placeholder="Search by voucher no" value="<?= htmlspecialchars($search) ?>">
-            <div class="date-filters">
-                <label>From:</label>
-                <input type="date" name="from_date" value="<?= htmlspecialchars($from_date) ?>">
-                <label>To:</label>
-                <input type="date" name="to_date" value="<?= htmlspecialchars($to_date) ?>">
+    
+    <div class="main-container">
+        <div class="header-section">
+            <div class="header-title">
+                <h2><i class="fas fa-book"></i> Journal Vouchers</h2>
+                <p class="record-count"><?= number_format($total_rows) ?> records found</p>
             </div>
-            <button type="submit" class="search-button">
-                <i class="fas fa-search"></i> Search
-            </button>
-            <a href="journal_vouchers_list.php" class="reset-button">
-                <i class="fas fa-sync-alt"></i> Reset
-            </a>
-        </form>
-    </div>
+            <div class="action-buttons">
+                <a href="journal_voucher.php" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> New Journal
+                </a>
+                <button class="btn btn-secondary print-btn" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+            </div>
+        </div>
 
-    <div class="action-buttons" style="margin-bottom: 20px;">
-        <a href="journal_voucher.php" class="add-button">
-            <i class="bi bi-plus-circle"></i> Create New Journal Voucher
-        </a>
-    </div>
+        <?php if (!empty($successMessage)): ?>
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> <?php echo $successMessage; ?>
+            </div>
+        <?php endif; ?>
 
-    <div class="table-responsive">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Voucher No</th>
-                    <th>Date</th>
-                    <th>Total Amount</th>
-                    <th>Ledgers</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if ($vouchers->num_rows > 0): ?>
-                    <?php while($voucher = $vouchers->fetch_assoc()): ?>
+        <div class="filter-section">
+            <form method="get" class="filter-form">
+                <div class="filter-group">
+                    <label for="date_filter"><i class="fas fa-calendar-day"></i> Filter by Date:</label>
+                    <input type="date" id="date_filter" name="date_filter" value="<?= htmlspecialchars($date_filter) ?>">
+                    <button type="submit" class="btn btn-filter">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <?php if (!empty($date_filter)): ?>
+                        <a href="journal_list.php" class="btn btn-clear">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </form>
+        </div>
+
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Voucher No</th>
+                        <th>Date</th>
+                        <th>Debit Accounts</th>
+                        <th>Credit Accounts</th>
+                        <th class="amount-col">Amount</th>
+                        <th class="actions-col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($vouchers)): ?>
                         <tr>
-                            <td><?= htmlspecialchars($voucher['voucher_number']) ?></td>
-                            <td><?= date('d-M-Y', strtotime($voucher['voucher_date'])) ?></td>
-                            <td><?= number_format($voucher['total_amount'], 2) ?></td>
-                            <td>
-                                <?php 
-                                // Get ledger names for display
-                                $ledger_ids = explode(',', $voucher['ledger_ids']);
-                                $ledger_names = [];
-                                foreach ($ledger_ids as $id) {
-                                    $ledger = $conn->query("SELECT ledger_name FROM ledgers WHERE ledger_id = $id")->fetch_assoc();
-                                    if ($ledger) $ledger_names[] = $ledger['ledger_name'];
-                                }
-                                echo implode(', ', array_unique($ledger_names));
-                                ?>
+                            <td colspan="6" class="no-data">
+                                <i class="fas fa-database"></i> No journal vouchers found
                             </td>
-                            <td class="action-buttons">
-                                <a href="journal_voucher_view.php?id=<?= $voucher['voucher_id'] ?>" class="view-btn" title="View">
-                                    <i class="bi bi-eye"></i>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($vouchers as $voucher): ?>
+                        <tr>
+                            <td class="voucher-number"><?= htmlspecialchars($voucher['voucher_number']) ?></td>
+                            <td><?= date('d-M-Y', strtotime($voucher['voucher_date'])) ?></td>
+                            <td>
+                                <div class="ledger-list debit-ledgers" style="font-size: 1rem;">
+                                    <?php foreach ($voucher['debit_ledgers'] as $ledger): ?>
+                                        <span><?= htmlspecialchars($ledger['ledger_name']) ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="ledger-list credit-ledgers" style="font-size: 1rem;">
+                                    <?php foreach ($voucher['credit_ledgers'] as $ledger): ?>
+                                        <span><?= htmlspecialchars($ledger['ledger_name']) ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            </td>
+                            <td class="amount">₹<?= number_format($voucher['total_amount'], 2) ?></td>
+                            <td class="actions">
+                                <a href="view_journal.php?id=<?= $voucher['voucher_id'] ?>" class="action-btn view-btn" title="View">
+                                    <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="edit_journal.php?id=<?= $voucher['voucher_id'] ?>" class="edit-btn" title="Edit">
-                                    <i class="bi bi-pencil"></i>
+                                <a href="edit_journal.php?id=<?= $voucher['voucher_id'] ?>" class="action-btn edit-btn" title="Edit">
+                                    <i class="fas fa-pencil-alt"></i>
                                 </a>
-                                <a href="journal_voucher_delete.php?id=<?= $voucher['voucher_id'] ?>" class="delete-btn" title="Delete" onclick="return confirm('Are you sure you want to delete this voucher?');">
-                                    <i class="bi bi-trash"></i>
+                                <a href="delete_journal.php?id=<?= $voucher['voucher_id'] ?>" 
+                                   class="action-btn delete-btn" 
+                                   title="Delete"
+                                   onclick="return confirm('Are you sure you want to delete this voucher?');">
+                                    <i class="fas fa-trash-alt"></i>
                                 </a>
                             </td>
                         </tr>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="5">No journal vouchers found</td>
-                    </tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
 
-    <?php if ($totalPages > 1): ?>
+        <?php if ($total_pages > 1): ?>
         <div class="pagination">
             <?php if ($page > 1): ?>
-                <a href="?page=1&search=<?= urlencode($search) ?>&from_date=<?= $from_date ?>&to_date=<?= $to_date ?>">First</a>
-                <a href="?page=<?= $page-1 ?>&search=<?= urlencode($search) ?>&from_date=<?= $from_date ?>&to_date=<?= $to_date ?>">Prev</a>
+                <a href="?page=1<?= !empty($date_filter) ? '&date_filter='.$date_filter : '' ?>" class="page-link">&laquo; First</a>
+                <a href="?page=<?= $page-1 ?><?= !empty($date_filter) ? '&date_filter='.$date_filter : '' ?>" class="page-link">&lsaquo; Prev</a>
             <?php endif; ?>
 
             <?php 
+            // Show page numbers
             $start = max(1, $page - 2);
-            $end = min($totalPages, $page + 2);
+            $end = min($total_pages, $page + 2);
             
             for ($i = $start; $i <= $end; $i++): ?>
-                <?php if ($i == $page): ?>
-                    <span class="current"><?= $i ?></span>
-                <?php else: ?>
-                    <a href="?page=<?= $i ?>&search=<?= urlencode($search) ?>&from_date=<?= $from_date ?>&to_date=<?= $to_date ?>"><?= $i ?></a>
-                <?php endif; ?>
+                <a href="?page=<?= $i ?><?= !empty($date_filter) ? '&date_filter='.$date_filter : '' ?>" 
+                   class="page-link <?= $i == $page ? 'active' : '' ?>">
+                    <?= $i ?>
+                </a>
             <?php endfor; ?>
 
-            <?php if ($page < $totalPages): ?>
-                <a href="?page=<?= $page+1 ?>&search=<?= urlencode($search) ?>&from_date=<?= $from_date ?>&to_date=<?= $to_date ?>">Next</a>
-                <a href="?page=<?= $totalPages ?>&search=<?= urlencode($search) ?>&from_date=<?= $from_date ?>&to_date=<?= $to_date ?>">Last</a>
+            <?php if ($page < $total_pages): ?>
+                <a href="?page=<?= $page+1 ?><?= !empty($date_filter) ? '&date_filter='.$date_filter : '' ?>" class="page-link">Next &rsaquo;</a>
+                <a href="?page=<?= $total_pages ?><?= !empty($date_filter) ? '&date_filter='.$date_filter : '' ?>" class="page-link">Last &raquo;</a>
             <?php endif; ?>
         </div>
-    <?php endif; ?>
-</div>
+        <?php endif; ?>
+    </div>
 
-<script>
-// Auto-hide success message after 5 seconds
-setTimeout(function() {
-    const msg = document.querySelector('.success-message');
-    if (msg) {
-        msg.style.transition = 'opacity 0.5s ease-out';
-        msg.style.opacity = '0';
-        setTimeout(() => msg.remove(), 500);
-    }
-}, 3000);
-</script>
+    <script>
+        // Auto-hide the success message after 4 seconds
+        setTimeout(function() {
+            const msg = document.querySelector('.alert');
+            if (msg) {
+                msg.style.transition = 'opacity 0.5s ease-out';
+                msg.style.opacity = '0';
+                setTimeout(() => msg.remove(), 500);
+            }
+        }, 4000);
+    </script>
 </body>
 </html>
