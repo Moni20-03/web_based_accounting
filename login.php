@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $_SESSION['username'] = $row['username'];
                         $_SESSION['role'] = $row['role'];
                         $_SESSION['company_db'] = $company_db_name;
-                        $_SESSION['company_name'] = $company_name;
+                        $_SESSION['company_name'] = strtoupper($company_name);
                         $_SESSION['last_activity'] = time();
 
                         // Force password change if password is still DOB

@@ -128,8 +128,9 @@
     background-color: rgba(46, 204, 113, 0.1);
     border-left: 4px solid var(--success);
     color: var(--success);
-}
-
+}  
+        
+ 
 /* Responsive Design */
 @media (max-width: 768px) {
     .navbar {

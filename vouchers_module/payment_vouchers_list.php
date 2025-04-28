@@ -67,33 +67,10 @@ $display_date = date('d-M-Y');
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar">
-        <div class="navbar-brand">
-            <a href="../index.html">
-                <img class="logo" src="../images/logo3.png" alt="Logo">
-                <span>FinPack</span> 
-            </a>
-        </div>
-        <ul class="nav-links">
-            <li><a href="../dashboards/dashboard.php">
-                <i class="fas fa-tachometer-alt"></i> Dashboard</a>
-            </li>
-            <li>
-                <a href="#">
-                    <i class="fas fa-user-circle"></i>
-                    <?php echo htmlspecialchars($_SESSION['username']); ?>
-                </a>
-            </li>
-            <li>
-                <a href="../logout.php" style="color:rgb(235, 71, 53);">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </a>
-            </li>
-        </ul>
-    </nav>
-    
+
+<?php 
+    include('../navbar.php');
+?>  
     <div class="main-container">
         <div class="header-section">
             <div class="header-title">
@@ -101,7 +78,7 @@ $display_date = date('d-M-Y');
                 <p class="record-count"><?= number_format($total_rows) ?> records found</p>
             </div>
             <div class="action-buttons">
-                <a href="create_payment.php" class="btn btn-primary">
+                <a href="payment_voucher.php" class="btn btn-primary">
                     <i class="fas fa-plus"></i> New Payment
                 </a>
                 <button class="btn btn-secondary print-btn" onclick="window.print()">

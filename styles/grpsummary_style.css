@@ -38,11 +38,12 @@ body {
     gap: 15px;
 }
 
+
 .group-summary-title {
     font-size: 22px;
     font-weight: 600;
     color: var(--primary-blue);
-    margin: 0;
+    margin-right:10%;
 }
 
 .group-summary-title span {
@@ -155,20 +156,63 @@ body {
 
 /* Print styles */
 @media print {
+    body {
+        background-color: white;
+        padding: 0;
+        margin: 0;
+        font-size: 11pt;
+    }
+    
     .group-summary-container {
         box-shadow: none;
         padding: 0;
+        margin: 0;
+        width: 100%;
     }
     
-    .group-summary-form, .button {
-        display: none;
+    .group-summary-form, .button, .back-button, .pagination, .pagination-info, .breadcrumb {
+        display: none !important;
     }
     
     .group-summary-table {
         box-shadow: none;
+        width: 100%;
+        page-break-inside: auto;
     }
     
     .group-summary-table tr {
         page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    .group-summary-table th, 
+    .group-summary-table td {
+        padding: 4px 8px !important;
+    }
+    
+    .group-summary-header {
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .group-summary-title {
+        margin-top: 10px;
+        font-size: 14pt;
+        text-align: center;
+    }
+    
+    @page {
+        size: A4 portrait;
+        margin: 1cm;
+        
+        @top-center {
+            content: "<?= htmlspecialchars($company_db) ?> - Group Summary: <?= htmlspecialchars($group_name) ?>";
+            font-size: 10pt;
+        }
+        @bottom-right {
+            content: "Page " counter(page) " of " counter(pages);
+            font-size: 10pt;
+        }
     }
 }

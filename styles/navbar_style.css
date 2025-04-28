@@ -35,13 +35,16 @@ body {
     z-index: 1000;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-
+.navbar-brand
+{
+    display: flex;
+    align-items: center;
+}
 .navbar-brand a {
     font-size: 1.5rem;
     font-weight: 600;
     color: var(--white);
-    display: flex;
-    align-items: center;
+    
     transition: all 0.3s ease;
     text-decoration: none;
 }

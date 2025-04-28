@@ -63,7 +63,7 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Design</title>
+  <title>Company Head Dashboard</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../styles/dashboard_styles.css">
@@ -72,7 +72,7 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
   <div class="sidebar">
     <div class="logo">
       <i class="fas fa-rocket"></i>
-      <span><?php echo $company_name; ?></span>
+      <span style="text-transform:uppercase;"><?php echo $company_name; ?></span>
     </div>
     <ul class="menu">
       <li>
@@ -122,8 +122,10 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
           <i class="fas fa-chevron-down"></i>
         </a>
         <ul class = "submenu">
-            <li><a href="../reports/trial_balance.php"><i class="fas fa-balance-scale"></i> Trial Balance</a></li> 
+            <li><a href="../reports/trial_balance.php"><i class="fas fa-calculator"></i> Trial Balance</a></li> 
             <li><a href="../reports/profit_loss.php"><i class="fas fa-chart-line"></i> Profit & Loss</a></li> 
+            <li><a href="../reports/day_book.php"><i class="fas fa-book-open"></i> Day Book</a></li> 
+            <li><a href="../reports/balance_sheet.php"><i class="fas fa-scale-balanced"></i> Balance Sheet</a></li>   
         </ul>
       </li>
       
@@ -133,6 +135,9 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
           <span>User Management</span>
           <i class="fas fa-chevron-down"></i>
         </a>
+        <ul class = "submenu">
+            <li><a href="../registerations/create_roles.php"><i class="fas fa-user-plus"></i> Create Roles</a></li> 
+        </ul>
       </li>
 
     </ul>

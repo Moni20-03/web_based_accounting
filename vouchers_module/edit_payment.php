@@ -411,7 +411,7 @@ $display_date = date('d-M-Y');
 
 <div class="voucher-container tally-style">
     <div class="voucher-header">
-        <h2>Edit Payment Voucher</h2>
+            <h2>Edit Payment Voucher</h2>
         <h3><?php echo $company_db ?></h3>
         <div class="current-date"><?= $display_date ?></div>
     </div>
@@ -589,6 +589,17 @@ $display_date = date('d-M-Y');
 </div>
 
 <script>
+
+function goBack() {
+    // Check if there's a previous page in the session history
+    if (document.referrer && document.referrer.indexOf(window.location.hostname) !== -1) {
+        window.history.back();
+    } else {
+        // Default fallback URL if no history or coming from external site
+        window.location.href = '../dashboards/dashboard.php'; // Or your preferred default
+    }
+}
+
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     updateDebitLedgers();

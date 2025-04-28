@@ -1,3 +1,7 @@
+<?php
+
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,14 +11,14 @@
 <body>
     <!-- Navbar -->
     <nav class="navbar">
-        <div class="navbar-brand">
-            <a href="index.html">
-                <img class="logo" src="images/logo3.png" alt="Logo">
-                <span>FinPack</span> 
-            </a>
-        </div>
-        <ul class="nav-links">
-            <li><a href="dashboard.php">
+            <div class="navbar-brand">
+                <a href="../index.html">
+                    <img class="logo" src="../images/logo3.png" alt="Logo">
+                    <span>FinPack</span> 
+                </a>
+            </div>
+            <ul class="nav-links">
+            <li><a href="../dashboards/dashboard.php">
                 <i class="fas fa-tachometer-alt"></i> Dashboard</a>
             </li>
             <li>
@@ -24,7 +28,7 @@
                 </a>
             </li>
             <li>
-                <a href="logout.php" style="color:rgb(235, 71, 53);">
+                <a href="../logout.php" style="color:rgb(235, 71, 53);">
                     <i class="fas fa-sign-out-alt"></i>
                     Logout
                 </a>

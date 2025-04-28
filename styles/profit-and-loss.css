@@ -1,0 +1,269 @@
+/* FinPack Profit and Loss Statement Styles */
+:root {
+    --primary-blue: #1A2A57;
+    --accounting-green: #4CAF50;
+    --profit-green: #2E7D32;
+    --loss-red: #C62828;
+    --alert-red: #E53935;
+    --light-gray: #F5F7FA;
+    --hover-blue: #2A3A77;
+    --selected-blue: #3A4A97;
+    --white: #FFFFFF;
+    --border-gray: #E0E0E0;
+}
+
+body {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    background-color: var(--light-gray);
+    color: var(--primary-blue);
+    margin: 0;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+.pl-container {
+    max-width: 1200px;
+    margin: 20px auto;
+    background-color: var(--white);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 30px;
+}
+
+.company-header {
+    font-size: 1.5em;
+    font-weight: bold;
+    text-align: center;
+    margin: 10px 0;
+    color: #2c3e50;
+}
+
+.pl-header {
+    text-align: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--primary-blue);
+}
+
+.pl-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--primary-blue);
+    margin: 0 0 5px 0;
+}
+
+.pl-header h3 {
+    font-size: 16px;
+    font-weight: 500;
+    color: #666;
+    margin: 0;
+}
+
+.date-filter {
+    display: flex;
+    justify-content:center;
+    margin-bottom: 25px;
+}
+
+.filter-form {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-form label {
+    font-weight: 500;
+    color: var(--primary-blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-form input[type="date"] {
+    padding: 8px 12px;
+    border: 1px solid var(--border-gray);
+    border-radius: 4px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.filter-form input[type="date"]:focus {
+    border-color: var(--primary-blue);
+    outline: none;
+}
+
+.btn-group
+{
+    display: flex;
+    align-items: center;
+    gap:20px;
+}
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary {
+    background-color: var(--primary-blue);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--hover-blue);
+}
+
+.btn-print {
+    background-color: var(--accounting-green);
+    color: white;
+}
+
+.btn-print:hover {
+    background-color: #3d8b40;
+}
+
+.pl-content {
+    margin-top: 20px;
+}
+
+.pl-table {
+    width: 100%;
+    border-collapse: collapse;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.pl-table thead {
+    background-color: var(--primary-blue);
+    color: var(--white);
+}
+
+.pl-table th {
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.pl-table th.amount {
+    text-align: right;
+}
+
+.pl-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-gray);
+}
+
+.pl-table tbody tr:nth-child(even) {
+    background-color: rgba(245, 247, 250, 0.5);
+}
+
+.pl-table .amount {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+}
+
+.empty-cell {
+    color: #999;
+    font-style: italic;
+}
+
+.profit {
+    background-color: rgba(46, 125, 50, 0.08) !important;
+    color: var(--profit-green);
+    font-weight: 600;
+}
+
+.loss {
+    background-color: rgba(198, 40, 40, 0.08) !important;
+    color: var(--loss-red);
+    font-weight: 600;
+}
+
+.total-row {
+    font-weight: 600;
+    background-color: rgba(26, 42, 87, 0.05) !important;
+    border-top: 2px solid var(--border-gray);
+    border-bottom: 2px solid var(--border-gray);
+}
+
+.pl-table tfoot {
+    border-top: 2px solid var(--primary-blue);
+}
+
+/* Hover effects */
+.pl-table tbody tr:not(.profit, .loss, .total-row):hover {
+    background-color: rgba(26, 42, 87, 0.05);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .date-filter {
+        justify-content: center;
+    }
+    
+    .filter-form {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .filter-form label {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+    }
+    
+    .pl-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+/* Print-specific styles */
+@media print {
+    body {
+        background-color: white;
+        padding: 0;
+        font-size: 12px;
+    }
+    
+    .pl-container {
+        box-shadow: none;
+        padding: 0;
+        width: 100%;
+    }
+    
+    .date-filter, .btn {
+        display: none;
+    }
+    
+    .pl-table {
+        box-shadow: none;
+        width: 100%;
+    }
+    
+    .pl-table tr {
+        page-break-inside: avoid;
+    }
+    
+    .pl-header h1 {
+        font-size: 18px;
+    }
+    
+    .pl-header h3 {
+        font-size: 14px;
+    }
+}

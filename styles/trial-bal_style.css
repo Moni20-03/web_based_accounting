@@ -45,10 +45,10 @@ body {
 }
 
 .title {
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 600;
     color: var(--primary-blue);
-    margin: 0;
+    margin-right:15%;
 }
 
 .date-form {
@@ -91,6 +91,28 @@ body {
 
 .button.print:hover {
     background-color: #3d8b40;
+}
+
+.header .back-button {
+    background-color:var(--primary-blue);
+    color: white;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 18px;
+    transition: all 0.2s ease;
+}
+
+.back-button:hover {
+    font-size: 20px;
+}
+
+/* Adjust the h2 margin when back button is present */
+.header-top h2 {
+    margin: 0;
 }
 
 .trial-balance-table {
@@ -178,22 +200,54 @@ body {
     body {
         background-color: white;
         padding: 0;
+        margin: 0;
+        font-size: 11pt;
     }
     
     .container {
         box-shadow: none;
         padding: 0;
+        margin: 0;
+        width: 100%;
     }
     
-    .date-form, .button {
-        display: none;
+    .date-form, .button, .back-button {
+        display: none !important;
     }
     
     .trial-balance-table {
         box-shadow: none;
+        width: 100%;
+        page-break-inside: auto;
     }
     
     .trial-balance-table tr {
         page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    .trial-balance-table th, 
+    .trial-balance-table td {
+        padding: 4px 8px !important;
+    }
+    
+    .header {
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .title {
+        margin-top: 10px;
+        font-size: 14pt;
+    }
+    
+    .pagination, .pagination-info {
+        display: none !important;
+    }
+    
+    @page {
+        size: A4 portrait;
+        margin: 1cm;
     }
 }

@@ -1,123 +1,263 @@
 <?php
 include '../database/findb.php';
 
+// Get date for balance sheet
 $as_on_date = $_GET['as_on_date'] ?? date('Y-m-d');
 
-// Fetch grouped ledgers
-function fetchGroupBalance($conn, $nature, $as_on_date) {
-    $query = "
-        SELECT g.group_name, l.ledger_id, l.ledger_name,
-            SUM(CASE WHEN t.transaction_type = 'Debit' THEN t.amount ELSE 0 END) AS total_dr,
-            SUM(CASE WHEN t.transaction_type = 'Credit' THEN t.amount ELSE 0 END) AS total_cr
-        FROM ledgers l
-        JOIN groups g ON l.group_id = g.group_id
-        LEFT JOIN transactions t ON t.ledger_id = l.ledger_id
-        LEFT JOIN vouchers v ON v.voucher_id = t.voucher_id AND v.voucher_date <= ?
-        WHERE g.nature = ?
-        GROUP BY l.ledger_id
-        ORDER BY g.group_name, l.ledger_name
-    ";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param('ss', $as_on_date, $nature);
-    $stmt->execute();
-    $result = $stmt->get_result();
+// Pagination parameters
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$per_page = 20; // Items per page
+$offset = ($page - 1) * $per_page;
 
-    $groups = [];
-    while ($row = $result->fetch_assoc()) {
-        $balance = $row['total_dr'] - $row['total_cr'];
-        if (!isset($groups[$row['group_name']])) {
-            $groups[$row['group_name']] = [];
-        }
-        $groups[$row['group_name']][] = [
-            'ledger_name' => $row['ledger_name'],
-            'balance' => $balance
-        ];
-    }
-    return $groups;
+// Step 1: Fetch all groups (Asset / Liability)
+$groups = [];
+$res = $conn->query("SELECT group_id, group_name, nature FROM groups");
+while ($row = $res->fetch_assoc()) {
+    $groups[$row['group_id']] = [
+        'group_id' => $row['group_id'],
+        'group_name' => $row['group_name'],
+        'nature' => $row['nature'], // 'Asset' or 'Liability'
+        'ledgers' => []
+    ];
 }
 
-// Calculate total
-function calculateTotal($groups) {
+// Step 2: Fetch ledger balances with pagination
+$ledgers_query = $conn->query("
+    SELECT l.ledger_id, l.ledger_name, l.group_id, l.opening_balance,
+           IFNULL(SUM(
+                CASE WHEN t.transaction_type = 'Debit' THEN t.amount
+                     WHEN t.transaction_type = 'Credit' THEN -t.amount
+                END
+           ), 0) as transaction_total
+    FROM ledgers l
+    LEFT JOIN transactions t ON l.ledger_id = t.ledger_id AND t.transaction_date <= '$as_on_date'
+    GROUP BY l.ledger_id
+    LIMIT $per_page OFFSET $offset
+");
+
+// Get total count for pagination
+$total_count = $conn->query("SELECT COUNT(*) as total FROM ledgers")->fetch_assoc()['total'];
+$total_pages = ceil($total_count / $per_page);
+
+$total_opening_balance = 0;
+
+while ($row = $ledgers_query->fetch_assoc()) {
+    $closing_balance = $row['opening_balance'] + $row['transaction_total'];
+
+    if (!isset($groups[$row['group_id']])) continue; // Skip orphan ledgers
+
+    $groups[$row['group_id']]['ledgers'][] = [
+        'ledger_id' => $row['ledger_id'],
+        'ledger_name' => $row['ledger_name'],
+        'closing_balance' => $closing_balance
+    ];
+
+    $total_opening_balance += $row['opening_balance'];
+}
+
+// Step 3: Separate into assets and liabilities
+$assets = [];
+$liabilities = [];
+
+foreach ($groups as $group) {
+    if (empty($group['ledgers'])) continue;
+
+    if ($group['nature'] === 'Asset') {
+        $assets[] = $group;
+    } elseif ($group['nature'] === 'Liability') {
+        $liabilities[] = $group;
+    }
+}
+
+// Step 4: Calculate grand totals
+function calculate_total($groups) {
     $total = 0;
-    foreach ($groups as $ledgers) {
-        foreach ($ledgers as $ledger) {
-            $total += $ledger['balance'];
+    foreach ($groups as $group) {
+        foreach ($group['ledgers'] as $ledger) {
+            $total += $ledger['closing_balance'];
         }
     }
     return $total;
 }
 
-// Get assets & liabilities
-$asset_groups = fetchGroupBalance($conn, 'Asset', $as_on_date);
-$liability_groups = fetchGroupBalance($conn, 'Liability', $as_on_date);
+$total_assets = calculate_total($assets);
+$total_liabilities = calculate_total($liabilities);
 
-$total_assets = calculateTotal($asset_groups);
-$total_liabilities = calculateTotal($liability_groups);
-$net_worth = $total_assets - $total_liabilities;
+// Step 5: Calculate difference
+$difference = $total_assets - $total_liabilities;
 ?>
 
-<h2>🧾 Balance Sheet</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance Sheet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        th {
+            background-color: #f0f0f0;
+            text-align: left;
+        }
+        .amount {
+            text-align: right;
+        }
+        .clickable-row {
+            cursor: pointer;
+        }
+        .clickable-row:hover {
+            background-color: #f5f5f5;
+        }
+        .pagination {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .pagination a {
+            margin: 0 5px;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            text-decoration: none;
+            color: #333;
+        }
+        .pagination a.active {
+            background-color: #1A2A57;
+            color: white;
+        }
+        .difference-row {
+            background-color: #ffe6e6;
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h2 style="text-align: center;">Balance Sheet as on <?= date('d-m-Y', strtotime($as_on_date)) ?></h2>
 
-<form method="get" style="margin-bottom: 20px;">
-    <label>As on:</label>
-    <input type="date" name="as_on_date" value="<?= $as_on_date ?>" required>
-    <button type="submit">Show</button>
-    <button type="button" onclick="window.print()">🖨️ Print</button>
-</form>
+    <div style="margin-bottom: 20px;">
+        <form method="get">
+            <label for="as_on_date">As on Date:</label>
+            <input type="date" name="as_on_date" value="<?= htmlspecialchars($as_on_date) ?>" required>
+            <button type="submit">Generate</button>
+        </form>
+    </div>
 
-<table border="1" width="100%" cellpadding="8" cellspacing="0">
-    <thead>
-        <tr style="background-color: #e0e0e0;">
-            <th width="50%">Liabilities</th>
-            <th align="right">Amount (₹)</th>
-            <th width="50%">Assets</th>
-            <th align="right">Amount (₹)</th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php
-        // Get max number of rows to align columns
-        $max_rows = max(count($asset_groups, COUNT_RECURSIVE), count($liability_groups, COUNT_RECURSIVE));
-        $rows = max(count($asset_groups), count($liability_groups));
-        $liability_rows = [];
-        $asset_rows = [];
+    <table>
+        <thead>
+            <tr>
+                <th>Liabilities</th>
+                <th class="amount">Amount (₹)</th>
+                <th>Assets</th>
+                <th class="amount">Amount (₹)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php
+            $max_rows = max(count($liabilities), count($assets));
+            for ($i = 0; $i < $max_rows; $i++) {
+                echo "<tr>";
 
-        foreach ($liability_groups as $group => $ledgers) {
-            $liability_rows[] = ["<strong>$group</strong>", ''];
-            foreach ($ledgers as $ledger) {
-                $liability_rows[] = [$ledger['ledger_name'], number_format($ledger['balance'], 2)];
+                // Liabilities side
+                if (isset($liabilities[$i])) {
+                    $group_id = $liabilities[$i]['group_id'];
+                    echo "<td class='clickable-row' onclick=\"window.location.href='group_summary.php?group_id=$group_id'\"><strong>{$liabilities[$i]['group_name']}</strong>";
+                    foreach ($liabilities[$i]['ledgers'] as $ledger) {
+                        $ledger_id = $ledger['ledger_id'];
+                        echo "<div class='clickable-row' style='margin-left: 15px;' onclick=\"window.location.href='ledger_summary.php?ledger_id=$ledger_id'\">{$ledger['ledger_name']}</div>";
+                    }
+                    echo "</td><td class='amount'>";
+                    $group_total = array_sum(array_column($liabilities[$i]['ledgers'], 'closing_balance'));
+                    echo number_format($group_total, 2);
+                    echo "</td>";
+                } else {
+                    echo "<td></td><td></td>";
+                }
+
+                // Assets side
+                if (isset($assets[$i])) {
+                    $group_id = $assets[$i]['group_id'];
+                    echo "<td class='clickable-row' onclick=\"window.location.href='group_summary.php?group_id=$group_id'\"><strong>{$assets[$i]['group_name']}</strong>";
+                    foreach ($assets[$i]['ledgers'] as $ledger) {
+                        $ledger_id = $ledger['ledger_id'];
+                        echo "<div class='clickable-row' style='margin-left: 15px;' onclick=\"window.location.href='ledger_summary.php?ledger_id=$ledger_id'\">{$ledger['ledger_name']}</div>";
+                    }
+                    echo "</td><td class='amount'>";
+                    $group_total = array_sum(array_column($assets[$i]['ledgers'], 'closing_balance'));
+                    echo number_format($group_total, 2);
+                    echo "</td>";
+                } else {
+                    echo "<td></td><td></td>";
+                }
+
+                echo "</tr>";
             }
-        }
+            ?>
 
-        foreach ($asset_groups as $group => $ledgers) {
-            $asset_rows[] = ["<strong>$group</strong>", ''];
-            foreach ($ledgers as $ledger) {
-                $asset_rows[] = [$ledger['ledger_name'], number_format($ledger['balance'], 2)];
-            }
-        }
+            <!-- Grand Total Row -->
+            <tr style="background-color: #f0f0f0; font-weight: bold;">
+                <td>Total</td>
+                <td class="amount"><?= number_format($total_liabilities, 2) ?></td>
+                <td>Total</td>
+                <td class="amount"><?= number_format($total_assets, 2) ?></td>
+            </tr>
 
-        $row_count = max(count($liability_rows), count($asset_rows));
-        for ($i = 0; $i < $row_count; $i++) {
-            echo "<tr>";
-            echo "<td>" . ($liability_rows[$i][0] ?? '') . "</td>";
-            echo "<td align='right'>" . ($liability_rows[$i][1] ?? '') . "</td>";
-            echo "<td>" . ($asset_rows[$i][0] ?? '') . "</td>";
-            echo "<td align='right'>" . ($asset_rows[$i][1] ?? '') . "</td>";
-            echo "</tr>";
-        }
-        ?>
-        <tr style="font-weight: bold; background-color: #f9f9f9;">
-            <td align="right">Total Liabilities</td>
-            <td align="right"><?= number_format($total_liabilities, 2) ?></td>
-            <td align="right">Total Assets</td>
-            <td align="right"><?= number_format($total_assets, 2) ?></td>
-        </tr>
-        <tr style="font-weight: bold; background-color: #e7f4e4;">
-            <td colspan="3" align="right">🧾 Net Worth (Owner's Equity)</td>
-            <td align="right"><?= number_format($net_worth, 2) ?></td>
-        </tr>
-        <?php if ($net_worth < 0): ?>
-            <tr><td colspan="4" style="color:red; font-weight:bold;" align="center">⚠️ Warning: Net Worth is Negative!</td></tr>
+            <!-- Difference Row (if any) -->
+            <?php if (abs($difference) > 0.01) { ?>
+            <tr class="difference-row">
+                <td colspan="2" style="text-align: center;">
+                    Difference in Opening Balance: <?= ($difference < 0) ? number_format(abs($difference),2) . ' Cr' : number_format(abs($difference),2) . ' Dr' ?>
+                </td>
+                <td colspan="2" style="text-align: center;">Please check ledgers!</td>
+            </tr>
+            <?php } ?>
+        </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <?php if ($total_pages > 1): ?>
+    <div class="pagination">
+        <?php if ($page > 1): ?>
+            <a href="?<?= http_build_query(array_merge($_GET, ['page' => 1])) ?>">First</a>
+            <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>">Prev</a>
         <?php endif; ?>
-    </tbody>
-</table>
+        
+        <?php for ($i = max(1, $page - 2); $i <= min($page + 2, $total_pages); $i++): ?>
+            <a href="?<?= http_build_query(array_merge($_GET, ['page' => $i])) ?>" <?= $i === $page ? 'class="active"' : '' ?>>
+                <?= $i ?>
+            </a>
+        <?php endfor; ?>
+        
+        <?php if ($page < $total_pages): ?>
+            <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page + 1])) ?>">Next</a>
+            <a href="?<?= http_build_query(array_merge($_GET, ['page' => $total_pages])) ?>">Last</a>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <script>
+        // Make rows clickable
+        document.addEventListener('DOMContentLoaded', function() {
+            const rows = document.querySelectorAll('.clickable-row');
+            rows.forEach(row => {
+                row.addEventListener('click', function(e) {
+                    // Don't navigate if clicking on a link inside the cell
+                    if (e.target.tagName !== 'A' && e.target.tagName !== 'BUTTON') {
+                        window.location.href = this.getAttribute('data-href') || this.parentElement.getAttribute('data-href');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

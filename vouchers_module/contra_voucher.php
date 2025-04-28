@@ -45,6 +45,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $total_amount = 0;
     foreach ($to_ledger_ids as $index => $to_id) {
         $amt = (float)$to_amounts[$index];
+        $narr = (string)$to_narrations[$index];
         if (empty($to_id) || $amt <= 0) {
             $errors[] = "Row " . ($index + 1) . ": Please select a valid 'To' ledger and enter amount.";
         } elseif ($to_id == $from_ledger_id) {
@@ -61,7 +62,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Insert 
             $stmt = $conn->prepare("INSERT INTO vouchers (user_id, voucher_number, voucher_type, voucher_date, total_amount) 
                                     VALUES (?, ?, ?, ?, ?)");
-            $narration_summary = "Contra transfer from ledger ID: $from_ledger_id"; // optional
+            // $narration_summary = "Contra transfer from ledger ID:"; // optional
             $stmt->bind_param("isssd", $user_id, $voucher_number, $voucher_type, $voucher_date, $total_amount);
             $stmt->execute();
             $voucher_id = $stmt->insert_id;
@@ -94,7 +95,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             $stmt = $conn->prepare("INSERT INTO transactions (user_id, voucher_id, ledger_id, acc_code, transaction_type, amount, closing_balance, mode_of_payment, transaction_date, narration, opposite_ledger) 
                                     VALUES (?, ?, ?, ?, 'Credit', ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("iiisdssssi", $user_id, $voucher_id, $from_ledger_id, $from_acc_code, $total_amount, $new_from_bal, $mode_of_payment, $voucher_date, $narration_summary, $opposite_ledger_ids);
+            $stmt->bind_param("iiisdssssi", $user_id, $voucher_id, $from_ledger_id, $from_acc_code, $total_amount, $new_from_bal, $mode_of_payment, $voucher_date, $narr , $opposite_ledger_ids);
             $stmt->execute();
             $txn_id = $stmt->insert_id;
             $stmt->close();
@@ -183,6 +184,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link rel="stylesheet" href="../styles/form_style.css">
     <link rel="stylesheet" href="../styles/tally_style.css">
     <link rel="stylesheet" href="styles/navbar_style.css">
+    <style>
+        .header-top {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 5px;
+        }
+        .back-button {
+            background-color: #1abc9c;
+            color: white;
+            border:none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 20px;
+            transition: all 0.2s ease;
+        }
+        
+        .back-button :hover
+        {
+            font-size: 25px;
+        }
+        /* Adjust the h2 margin when back button is present */
+        .header-top h2 {
+            margin: 0;
+        }
+
+    </style>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
@@ -218,7 +250,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <div class="voucher-container tally-style">
     <div class="voucher-header">
-        <h2>Contra Voucher</h2>
+        <div class="header-top">
+            <button class="back-button" onclick="goBack()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h2>Contra Voucher</h2>
+        </div>
         <h3><?php echo $company_db ?></h3>
         <div class="current-date"><?= $display_date ?></div>
     </div>
@@ -266,7 +303,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         <div class="form-row">
         <div class="form-group">
-        <label>Transfer From (Cash/Bank Account):</label>
+        <label>Transfer From (Credit):</label>
         <select name="credit_ledger_id" id="from_ledger" class="form-control" onchange="updateContraToLedgers();fetchBalance(this, 'credit_balance')" required>
             <option value="">--Select--</option>
             <?php foreach ($ledgers as $ledger): ?>
@@ -308,7 +345,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
 
         <div class="form-group">
-        <h4>Transfer To (Contra Voucher)</h4>
+        <h4>Transfer To (Debit)</h4>
         <table id="creditTable" style="margin-top:0px;">
     <thead>
         <tr>
@@ -355,6 +392,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </div>
 
 <script>
+
+function goBack() {
+    // Check if there's a previous page in the session history
+    if (document.referrer && document.referrer.indexOf(window.location.hostname) !== -1) {
+        window.history.back();
+    } else {
+        // Default fallback URL if no history or coming from external site
+        window.location.href = '../dashboards/dashboard.php'; // Or your preferred default
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     updateContraToLedgers();
 });

@@ -196,8 +196,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="../styles/form_style.css">
-    <link rel="stylesheet" href="styles/navbar_style.css">
+    <link rel="stylesheet" href="../styles/navbar_style.css">
     <link rel="stylesheet" href="../styles/tally_style.css">
+    <style>
+        .header-top {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 5px;
+        }
+        .back-button {
+            background-color: #1abc9c;
+            color: white;
+            border:none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 20px;
+            transition: all 0.2s ease;
+        }
+        
+        .back-button :hover
+        {
+            font-size: 25px;
+        }
+        /* Adjust the h2 margin when back button is present */
+        .header-top h2 {
+            margin: 0;
+        }
+
+    </style>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
@@ -232,9 +263,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
 
 <div class="voucher-container tally-style">
     <div class="voucher-header">
-        <h2>Payment Voucher</h2>
-        <h3><?php echo $company_db ?></h3>
-        <div class="current-date"><?= $display_date ?></div>
+        <div class="header-top">
+            <button class="back-button" onclick="goBack()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h2>Payment Voucher</h2>
+        </div>
+            <h3><?php echo $company_db ?></h3>
+            <div class="current-date"><?= $display_date ?></div>
     </div>
 
     <?php if (!empty($errors)): ?>
@@ -372,6 +408,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
 </div>
 
 <script>
+
+function goBack() {
+    // Check if there's a previous page in the session history
+    if (document.referrer && document.referrer.indexOf(window.location.hostname) !== -1) {
+        window.history.back();
+    } else {
+        // Default fallback URL if no history or coming from external site
+        window.location.href = '../dashboards/dashboard.php'; // Or your preferred default
+    }
+}
+
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     updateDebitLedgers();
