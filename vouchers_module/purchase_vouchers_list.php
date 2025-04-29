@@ -78,32 +78,9 @@ $display_date = date('d-M-Y');
     </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar">
-        <div class="navbar-brand">
-            <a href="../index.html">
-                <img class="logo" src="../images/logo3.png" alt="Logo">
-                <span>FinPack</span> 
-            </a>
-        </div>
-        <ul class="nav-links">
-            <li><a href="../dashboards/dashboard.php">
-                <i class="fas fa-tachometer-alt"></i> Dashboard</a>
-            </li>
-            <li>
-                <a href="#">
-                    <i class="fas fa-user-circle"></i>
-                    <?php echo htmlspecialchars($_SESSION['username']); ?>
-                </a>
-            </li>
-            <li>
-                <a href="../logout.php" style="color:rgb(235, 71, 53);">
-                    <i class="fas fa-sign-out-alt"></i>
-                    Logout
-                </a>
-            </li>
-        </ul>
-    </nav>
+<?php 
+    include('../navbar.php');
+?>  
     
     <div class="main-container">
         <div class="header-section">
@@ -166,9 +143,9 @@ $display_date = date('d-M-Y');
                     <?php else: ?>
                         <?php foreach ($vouchers as $voucher): ?>
                         <tr>
-                            <td class="voucher-number"><?= htmlspecialchars($voucher['voucher_number']) ?></td>
-                            <td><?= date('d-M-Y', strtotime($voucher['voucher_date'])) ?></td>
-                            <td>
+                            <td data-label="Voucher Number"class="voucher-number"><?= htmlspecialchars($voucher['voucher_number']) ?></td>
+                            <td data-label="Voucher Date"><?= date('d-M-Y', strtotime($voucher['voucher_date'])) ?></td>
+                            <td data-label="Purchase Accounts">
                                 <div class="account-list debit-accounts">
                                     <?= htmlspecialchars($voucher['debit_accounts']) ?>
                                 </div>
@@ -178,8 +155,8 @@ $display_date = date('d-M-Y');
                                     <?= htmlspecialchars($voucher['credit_account']) ?>
                                 </div>
                             </td> -->
-                            <td class="amount">₹<?= number_format($voucher['total_amount'], 2) ?></td>
-                            <td class="actions">
+                            <td data-label="Amount" class="amount">₹<?= number_format($voucher['total_amount'], 2) ?></td>
+                            <td data-label="Action" class="actions">
                               
                                 <a href="edit_purchase.php?id=<?= $voucher['voucher_id'] ?>" class="action-btn edit-btn" title="Edit">
                                     <i class="fas fa-pencil-alt"></i>

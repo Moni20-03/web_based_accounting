@@ -154,6 +154,13 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
 
     </ul>
 
+    <div class="mobile-header">
+      <div class="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
     <div class="profile">
       <!-- <img src="https://via.placeholder.com/50" alt="Profile"> -->
       <div>
@@ -242,6 +249,19 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
               // Toggle current submenu
               item.classList.toggle('active');
             });
+          });
+
+          document.querySelector('.hamburger').addEventListener('click', function() {
+            this.classList.toggle('active');
+            document.querySelector('.sidebar').classList.toggle('expanded');
+            document.querySelector('.sidebar-overlay').classList.toggle('active');
+          });
+
+          // Close sidebar when clicking overlay
+          document.querySelector('.sidebar-overlay').addEventListener('click', function() {
+            this.classList.remove('active');
+            document.querySelector('.sidebar').classList.remove('expanded');
+            document.querySelector('.hamburger').classList.remove('active');
           });
   </script>
 </body>

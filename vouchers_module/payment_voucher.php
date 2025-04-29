@@ -228,6 +228,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && empty($errors)){
             margin: 0;
         }
 
+        
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>

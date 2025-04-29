@@ -35,7 +35,8 @@ if ($company_result) {
             'name' => $company['company_name'],
             'email' => $company['company_email'],
             'users' => $user_count,
-            'created_at' => $company['created_at'] ?? 'N/A'
+            'created_at' => $company['created_at'] ?? 'N/A',
+            'status' => $company['status']
         ];
     }
 }
@@ -393,10 +394,9 @@ if ($company_result) {
         }
     </style>
 </head>
-<body>
-    <div class="admin-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
+<body>     
+        <main class="main-content">
+        <!-- Main Content -->
             <div class="brand">
                 <div class="brand-icon">
                     <img src="../images/logo3.png" 
@@ -408,37 +408,6 @@ if ($company_result) {
                 </div>
                 <span class="brand-text">FinPack</span>
             </div>
-            
-            <ul class="admin-menu">
-                <li class="menu-item">
-                    <a href="#" class="menu-link active">
-                        <i class="fas fa-tachometer-alt"></i>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
-                <li class="menu-item">
-                    <a href="#" class="menu-link">
-                        <i class="fas fa-building"></i>
-                        <span>Companies</span>
-                    </a>
-                </li>
-                <li class="menu-item">
-                    <a href="#" class="menu-link">
-                        <i class="fas fa-users"></i>
-                        <span>Users</span>
-                    </a>
-                </li>
-                <li class="menu-item">
-                    <a href="#" class="menu-link">
-                        <i class="fas fa-cog"></i>
-                        <span>Settings</span>
-                    </a>
-                </li>
-            </ul>
-        </aside>
-        
-        <!-- Main Content -->
-        <main class="main-content">
             <div class="header">
                 <h1 class="page-title">Admin Dashboard</h1>
                 <div class="user-menu">
@@ -490,6 +459,7 @@ if ($company_result) {
                             <th>Email</th>
                             <th>Users</th>
                             <th>Created</th>
+                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -503,6 +473,10 @@ if ($company_result) {
                                 <span class="badge primary"><?php echo $company['users']; ?> users</span>
                             </td>
                             <td><?php echo date('M d, Y', strtotime($company['created_at'])); ?></td>
+                            <td style="color: <?php echo ($company['status'] === 'Active') ? 'green' : 'red'; ?>">
+                                <?php echo htmlspecialchars($company['status']); ?>
+                            </td>
+
                             <td>
                                 <button class="action-btn" onclick="viewUsers(<?php echo $company['id']; ?>, '<?php echo htmlspecialchars($company['name'], ENT_QUOTES); ?>')">
                                     <i class="fas fa-eye"></i> View Users

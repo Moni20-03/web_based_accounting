@@ -131,11 +131,11 @@ $display_date = date('d-M-Y');
                     <?php else: ?>
                         <?php foreach ($vouchers as $voucher): ?>
                         <tr>
-                            <td class="voucher-number"><?= htmlspecialchars($voucher['voucher_number']) ?></td>
-                            <td><?= date('d-M-Y', strtotime($voucher['voucher_date'])) ?></td>
-                            <td><?= htmlspecialchars($voucher['credit_ledger']) ?></td>
-                            <td class="amount">₹<?= number_format($voucher['total_amount'], 2) ?></td>
-                            <td class="actions">
+                            <td data-label="Voucher Number" class="voucher-number"><?= htmlspecialchars($voucher['voucher_number']) ?></td>
+                            <td data-label="Voucher Date"><?= date('d-M-Y', strtotime($voucher['voucher_date'])) ?></td>
+                            <td data-label="Credit Account"><?= htmlspecialchars($voucher['credit_ledger']) ?></td>
+                            <td data-label="Amount" class="amount">₹<?= number_format($voucher['total_amount'], 2) ?></td>
+                            <td data-label="Actions" class="actions">
                                 <a href="edit_payment.php?id=<?= $voucher['voucher_id'] ?>" class="action-btn edit-btn" title="Edit">
                                     <i class="fas fa-pencil-alt"></i>
                                 </a>

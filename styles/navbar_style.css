@@ -92,3 +92,140 @@ body {
 .nav-links li:hover a {
     color: var(--accent-green);
 }
+
+/* Enhanced Responsive Navbar Styles */
+@media (max-width: 768px) {
+    /* Mobile Navbar Layout - Enhanced */
+    .nav-links {
+        display: none;
+        position: absolute;
+        top: 70px;
+        left: 0;
+        width: 100%;
+        background-color: var(--primary-dark);
+        flex-direction: column;
+        gap: 0;
+        padding: 0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        z-index: 999;
+    }
+    
+    .nav-links.active {
+        display: flex;
+    }
+    
+    .nav-links li {
+        width: 100%;
+        text-align: left;
+        padding: 0;
+        transition: all 0.3s ease;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .nav-links li:last-child {
+        border-bottom: none;
+    }
+    
+    .nav-links li:hover {
+        background-color: rgba(26, 188, 156, 0.2);
+    }
+    
+    .nav-links a {
+        padding: 15px 20px;
+        width: 100%;
+        justify-content: flex-start;
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--white);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .nav-links a i {
+        width: 24px;
+        text-align: center;
+        font-size: 1.2rem;
+    }
+    
+    .nav-links li:hover a {
+        color: var(--accent-green);
+        background-color: transparent;
+        padding-left: 25px;
+    }
+    
+    /* Special style for logout link */
+    .nav-links li:last-child a {
+        color: rgb(235, 71, 53);
+    }
+    
+    .nav-links li:last-child:hover a {
+        background-color: rgba(235, 71, 53, 0.1);
+    }
+    
+    /* Mobile Menu Toggle - Enhanced */
+    .mobile-menu-toggle {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        width: 30px;
+        height: 21px;
+        cursor: pointer;
+        z-index: 1001;
+        transition: all 0.3s ease;
+    }
+    
+    .mobile-menu-toggle:hover span {
+        background-color: var(--accent-green);
+    }
+    
+    .mobile-menu-toggle span {
+        display: block;
+        height: 3px;
+        width: 100%;
+        background-color: var(--white);
+        border-radius: 3px;
+        transition: all 0.3s ease;
+    }
+    
+    .mobile-menu-toggle.active span:nth-child(1) {
+        transform: translateY(9px) rotate(45deg);
+        background-color: var(--accent-green);
+    }
+    
+    .mobile-menu-toggle.active span:nth-child(2) {
+        opacity: 0;
+    }
+    
+    .mobile-menu-toggle.active span:nth-child(3) {
+        transform: translateY(-9px) rotate(-45deg);
+        background-color: var(--accent-green);
+    }
+}
+
+@media (max-width: 576px) {
+    .nav-links {
+        top: 66px;
+    }
+    
+    .nav-links a {
+        padding: 14px 18px;
+        font-size: 1.5rem;
+    }
+    
+    .nav-links a i {
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .nav-links a {
+        padding: 12px 15px;
+        font-size: 0.9rem;
+        gap: 10px;
+    }
+    
+    .nav-links a i {
+        font-size: 1rem;
+    }
+}

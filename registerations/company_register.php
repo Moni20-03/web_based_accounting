@@ -10,8 +10,7 @@ $formData = [
     'company_name' => '',
     'company_email' => '',
     'company_phone' => '',
-    'company_address' => '',
-    'state' => ''
+    'company_address' => ''
 ];
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -22,34 +21,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $formData['company_email'] = trim($_POST['company_email'] ?? '');
         $formData['company_phone'] = trim($_POST['company_phone'] ?? '');
         $formData['company_address'] = trim($_POST['company_address'] ?? '');
-        $formData['state'] = trim($_POST['state'] ?? '');
 
-        // Validate inputs
-        if (empty($formData['company_name'])) {
-            $errors['company_name'] = "Company name is required";
-        } elseif (strlen($formData['company_name']) > 255) {
-            $errors['company_name'] = "Company name is too long";
-        }
+// Validate Company Name
+if (empty($formData['company_name'])) {
+    $errors['company_name'] = "Company name is required";
+} elseif (strlen($formData['company_name']) > 255) {
+    $errors['company_name'] = "Company name is too long";
+} elseif (!preg_match("/^[a-zA-Z\s\.\,\-]+$/", $formData['company_name'])) {
+    $errors['company_name'] = "Company name must contain only letters, spaces, or basic punctuation";
+}
 
-        if (empty($formData['company_email'])) {
-            $errors['company_email'] = "Company email is required";
-        } elseif (!filter_var($formData['company_email'], FILTER_VALIDATE_EMAIL)) {
-            $errors['company_email'] = "Invalid email format";
-        }
+// Validate Company Email
+if (empty($formData['company_email'])) {
+    $errors['company_email'] = "Company email is required";
+} elseif (!filter_var($formData['company_email'], FILTER_VALIDATE_EMAIL)) {
+    $errors['company_email'] = "Invalid email format";
+}
 
-        if (empty($formData['company_phone'])) {
-            $errors['company_phone'] = "Phone number is required";
-        } elseif (!preg_match('/^\d{10}$/', $formData['company_phone'])) {
-            $errors['company_phone'] = "Phone must be 10 digits";
-        }
+// Validate Phone Number
+if (empty($formData['company_phone'])) {
+    $errors['company_phone'] = "Phone number is required";
+} elseif (!preg_match('/^\d{10}$/', $formData['company_phone'])) {
+    $errors['company_phone'] = "Phone number must be exactly 10 digits (no letters or special characters)";
+}
 
-        if (empty($formData['company_address'])) {
-            $errors['company_address'] = "Address is required";
-        }
-
-        if (empty($formData['state'])) {
-            $errors['state'] = "State is required";
-        }
+// Validate Address
+if (empty($formData['company_address'])) {
+    $errors['company_address'] = "Address is required";
+} elseif (strlen($formData['company_address']) > 500) {
+    $errors['company_address'] = "Address is too long";
+}
 
         // Only proceed if no validation errors
         if (empty($errors)) {
@@ -67,8 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // If still no errors, proceed with registration
             if (empty($errors)) {
                 // Insert company into the global companies table
-                $stmt = $conn->prepare("INSERT INTO companies (company_name, company_email, company_phone, company_address, state) VALUES (?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssss", $formData['company_name'], $formData['company_email'], $formData['company_phone'], $formData['company_address'], $formData['state']);
+                $stmt = $conn->prepare("INSERT INTO companies (company_name, company_email, company_phone, company_address) VALUES (?, ?, ?, ?)");
+                $stmt->bind_param("ssss", $formData['company_name'], $formData['company_email'], $formData['company_phone'], $formData['company_address']);
 
                 if (!$stmt->execute()) {
                     throw new Exception("Database error: Could not register company");
@@ -103,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     email VARCHAR(255) NOT NULL UNIQUE,
                     dob CHAR(8) NOT NULL,
                     password VARCHAR(255) NOT NULL,
-                    role ENUM('Company Head', 'Accountant', 'Viewer') NOT NULL,
+                    role ENUM('Company Head', 'Accountant', 'Manager') NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
 
@@ -115,6 +116,34 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (parent_group_id) REFERENCES groups(group_id) ON DELETE SET NULL
                 );
+
+                INSERT INTO `groups` (`group_id`, `group_name`, `parent_group_id`, `nature`, `created_at`) VALUES
+                    (1, 'Capital Account', NULL, 'Liability', NOW()),
+                    (2, 'Reserves & Surplus', NULL, 'Liability', NOW()),
+                    (3, 'Current Liabilities', NULL, 'Liability', NOW()),
+                    (4, 'Loans (Liability)', NULL, 'Liability', NOW()),
+                    (5, 'Bank Accounts', NULL, 'Asset', NOW()),
+                    (6, 'Cash-in-Hand', NULL, 'Asset', NOW()),
+                    (7, 'Current Assets', NULL, 'Asset', NOW()),
+                    (8, 'Fixed Assets', NULL, 'Asset', NOW()),
+                    (9, 'Investments', NULL, 'Asset', NOW()),
+                    (10, 'Branch/Divisions', NULL, 'Asset', NOW()),
+                    (11, 'Direct Expenses', NULL, 'Expense', NOW()),
+                    (12, 'Indirect Expenses', NULL, 'Expense', NOW()),
+                    (13, 'Purchase Accounts', NULL, 'Expense', NOW()),
+                    (14, 'Sales Accounts', NULL, 'Income', NOW()),
+                    (15, 'Direct Incomes', NULL, 'Income', NOW()),
+                    (16, 'Indirect Incomes', NULL, 'Income', NOW()),
+                    (17, 'Duties & Taxes', 3, 'Liability', NOW()),
+                    (18, 'Provisions', 3, 'Liability', NOW()),
+                    (19, 'Secured Loans', 4, 'Liability', NOW()),
+                    (20, 'Unsecured Loans', 4, 'Liability', NOW()),
+                    (21, 'Stock-in-Hand', 7, 'Asset', NOW()),
+                    (22, 'Deposits (Asset)', 7, 'Asset', NOW()),
+                    (23, 'Sundry Debtors', 7, 'Asset', NOW()),
+                    (24, 'Sundry Creditors', 3, 'Liability', NOW()),
+                    (25, 'Loans & Advances (Asset)', 7, 'Asset', NOW()),
+                    (26, 'Suspense Account', NULL, 'Liability', NOW());
 
                 CREATE TABLE ledgers (
                     ledger_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -139,8 +168,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     voucher_type ENUM('Payment', 'Receipt', 'Sales', 'Purchase', 'Journal', 'Contra') NOT NULL,
                     voucher_date DATE NOT NULL DEFAULT CURRENT_DATE,
                     total_amount DECIMAL(15,2) NOT NULL,
-                    narration TEXT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
                 );
 
@@ -282,19 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <span class="error-message"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($errors['company_address']); ?></span>
                 <?php endif; ?>
             </div>
-            
-            <div class="form-group <?php echo !empty($errors['state']) ? 'has-error' : ''; ?>">
-                <label><i class="fa-solid fa-map-marker-alt"></i> State:</label>
-                <select name="state" required>
-                    <option value=""></option>
-                    <option value="Tamil Nadu" <?php echo $formData['state'] === 'Tamil Nadu' ? 'selected' : ''; ?>>Tamil Nadu</option>
-                    <option value="Karnataka" <?php echo $formData['state'] === 'Karnataka' ? 'selected' : ''; ?>>Karnataka</option>
-                </select>
-                <?php if (!empty($errors['state'])): ?>
-                    <span class="error-message"><i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($errors['state']); ?></span>
-                <?php endif; ?>
-            </div>
-            
+             
             <button type="submit">Next <i class="fa-solid fa-arrow-right"></i></button>
         </form>
     </div>
