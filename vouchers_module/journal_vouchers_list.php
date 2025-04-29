@@ -173,7 +173,7 @@ $display_date = date('d-M-Y');
                         <th>Debit Accounts</th>
                         <th>Credit Accounts</th>
                         <th class="amount-col">Amount</th>
-                        <th class="actions-col">Actions</th>
+                        <th class="actions-col" style="text-align:center;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -204,9 +204,7 @@ $display_date = date('d-M-Y');
                             </td>
                             <td class="amount">₹<?= number_format($voucher['total_amount'], 2) ?></td>
                             <td class="actions">
-                                <a href="view_journal.php?id=<?= $voucher['voucher_id'] ?>" class="action-btn view-btn" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
+                                
                                 <a href="edit_journal.php?id=<?= $voucher['voucher_id'] ?>" class="action-btn edit-btn" title="Edit">
                                     <i class="fas fa-pencil-alt"></i>
                                 </a>

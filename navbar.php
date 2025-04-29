@@ -14,7 +14,7 @@
             <div class="navbar-brand">
                 <a href="../index.html">
                     <img class="logo" src="../images/logo3.png" alt="Logo">
-                    <span>FinPack</span> 
+                    <span></span>
                 </a>
             </div>
             <ul class="nav-links">

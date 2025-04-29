@@ -124,11 +124,22 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
         <ul class = "submenu">
             <li><a href="../reports/trial_balance.php"><i class="fas fa-calculator"></i> Trial Balance</a></li> 
             <li><a href="../reports/profit_loss.php"><i class="fas fa-chart-line"></i> Profit & Loss</a></li> 
-            <li><a href="../reports/day_book.php"><i class="fas fa-book-open"></i> Day Book</a></li> 
             <li><a href="../reports/balance_sheet.php"><i class="fas fa-scale-balanced"></i> Balance Sheet</a></li>   
-        </ul>
+          </ul>
+        </li>
+        
+        <li>
+          <a href="#">
+            <i class="fas fa-folder-plus"></i>
+            <span>Display</span>
+            <i class="fas fa-chevron-down"></i>
+          </a>
+          <ul class = "submenu">
+          <li><a href="../reports/day_book.php"><i class="fas fa-book-open"></i> Day Book</a></li> 
+            <li><a href="../reports/cash_bank.php"><i class="fas fa-chart-line"></i> Cash/Bank Book</a></li> 
+          </ul>
       </li>
-      
+
       <li>
         <a href="#">
           <i class="fas fa-user"></i>
@@ -137,6 +148,7 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
         </a>
         <ul class = "submenu">
             <li><a href="../registerations/create_roles.php"><i class="fas fa-user-plus"></i> Create Roles</a></li> 
+            <li><a href="../registerations/change_password.php"><i class="fas fa-key"></i> Change Password</a></li> 
         </ul>
       </li>
 

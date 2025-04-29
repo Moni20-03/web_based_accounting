@@ -29,21 +29,18 @@ body {
 
 .group-summary-header {
     display: flex;
-    justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 25px;
     padding-bottom: 15px;
     border-bottom: 2px solid var(--primary-blue);
     flex-wrap: wrap;
-    gap: 15px;
+    gap: 10px;
 }
-
 
 .group-summary-title {
     font-size: 22px;
     font-weight: 600;
     color: var(--primary-blue);
-    margin-right:10%;
 }
 
 .group-summary-title span {

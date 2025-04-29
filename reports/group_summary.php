@@ -245,8 +245,9 @@ $cumulative_total_cr += $page_total_cr;
             <button class="back-button" style = "margin-right:20px;"onclick="goBack()">
                 <i class="fas fa-arrow-left"></i>
             </button>
-            <h1 class="group-summary-title">
-                <?= htmlspecialchars($company_db) ?> - Group Summary: <?= htmlspecialchars($group_name) ?>
+            <h1 style = "margin-right:0%" class="group-summary-title">
+                <?= htmlspecialchars($company_db) ?><br>
+                Group Summary: <?= htmlspecialchars($group_name) ?>
                 <span>(As on <?= date('d-M-Y', strtotime($report_date)) ?>)</span>
             </h1>
         </div>

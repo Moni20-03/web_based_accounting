@@ -93,15 +93,42 @@ if ($gross_profit > 0) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profit and Loss Statement</title>
-    <link rel="stylesheet" href="../styles/profit-and-loss.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="../styles/profit-and-loss.css?v=1.2">
 </head>
+<style>
+    .back-button{
+    background-color:var(--primary-blue);
+    color: white;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    display: flex; 
+    align-items: left; 
+    gap: 15px;
+    font-size:18px;
+    transition: all 0.2s ease;
+    }    
+
+</style>
+<script>
+    function goBack() {
+        window.history.back();
+    }
+</script>
 <body>
 
 <div class="pl-container">
-    <div class="company-header"><?php echo $company_db?></div>
-    
+    <div class="company-header" style="display: flex; justify-content: space-between; align-items: center; position: relative;">
+            <button class="back-button" onclick="goBack()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+        <span style="margin: 0 auto; text-align: center;">
+            <?php echo $company_db?>
+            - Profit and Loss Statement</div>
+        </span>
     <div class="pl-header">
-        <h1>Profit and Loss Statement</h1>
         <h3><?= date('d M Y', strtotime($from_date)) ?> to <?= date('d M Y', strtotime($to_date)) ?></h3>
     </div>
 

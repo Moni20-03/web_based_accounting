@@ -141,7 +141,7 @@ $display_date = date('d-M-Y');
                         <th>Date</th>
                         <th>Received In</th>
                         <th class="amount-col">Amount</th>
-                        <th class="actions-col">Actions</th>
+                        <th class="actions-col" style="text-align:center;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -159,9 +159,7 @@ $display_date = date('d-M-Y');
                             <td><?= htmlspecialchars($voucher['debit_ledger']) ?></td>
                             <td class="amount">₹<?= number_format($voucher['total_amount'], 2) ?></td>
                             <td class="actions">
-                                <a href="view_receipt.php?id=<?= $voucher['voucher_id'] ?>" class="action-btn view-btn" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
+        
                                 <a href="edit_receipt.php?id=<?= $voucher['voucher_id'] ?>" class="action-btn edit-btn" title="Edit">
                                     <i class="fas fa-pencil-alt"></i>
                                 </a>

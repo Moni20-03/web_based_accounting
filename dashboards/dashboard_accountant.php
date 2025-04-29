@@ -121,6 +121,15 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
             <li><a href="../reports/balance_sheet.php"><i class="fas fa-scale-balanced"></i> Balance Sheet</a></li> 
         </ul>
       </li>
+
+      <li>
+        <a href="../registerations/change_password.php">
+          <i class="fas fa-key"></i>
+           <span>Change Password</span>
+          <i class="fas fa-chevron-down"></i>
+        </a>
+      </li>
+      
     </ul>
 
     <div class="profile">
