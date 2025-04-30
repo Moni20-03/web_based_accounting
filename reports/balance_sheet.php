@@ -100,6 +100,8 @@ if (abs($net_profit) > 0.01)
     ];
     $total_liabilities += abs($net_profit);
 }
+
+$difference = $total_assets - $total_liabilities;
 ?>
 
 <!DOCTYPE html>
@@ -474,6 +476,14 @@ if (abs($net_profit) > 0.01)
                     <td>Total Assets</td>
                     <td class="amount"><?= number_format($total_assets, 2) ?></td>
                 </tr>
+
+                <?php if (abs($difference) > 0.01): ?>
+                    <tr class="difference-row" style = "color:red;">
+                        <td colspan="4">
+                            Difference in Balances: ₹<?= number_format(abs($difference), 2) ?>
+                        </td>
+                    </tr>
+                <?php endif; ?>
             </tbody>
         </table>
     </div>

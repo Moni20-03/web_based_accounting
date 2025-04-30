@@ -296,15 +296,7 @@ $ledger_id = $_GET['ledger_id'] ?? '';
                     </tr>
                 </thead>
                 <tbody>
-                    <tr class="opening-row">
-                        <td colspan="4">Opening Balance (<?= htmlspecialchars($ledger_name) ?>)</td>
-                        <td colspan="2"></td>
-                        <td class="amount balance">
-                            <?= number_format(abs($running_balance), 2) ?>
-                            <small><?= $running_balance >= 0 ? 'Dr' : 'Cr' ?></small>
-                        </td>
-                    </tr>
-
+                    
                     <?php
                     // Get transactions in date range
                     $txn_stmt = $conn->prepare("

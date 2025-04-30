@@ -19,7 +19,7 @@ $user_role = $role_check->fetch_assoc()['role'] ?? '';
 
 if ($user_role !== 'Company Head') {
     $_SESSION['error'] = "You don't have permission to delete vouchers";
-    header("Location: purchase_vouchers_list.php");
+    header("Location: receipt_vouchers_list.php");
     exit();
 }
 
@@ -91,6 +91,6 @@ try {
 }
 
 // Redirect back
-header("Location: purchase_vouchers_list.php");
+header("Location: receipt_vouchers_list.php");
 exit();
 ?>

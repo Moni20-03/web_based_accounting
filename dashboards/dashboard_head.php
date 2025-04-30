@@ -136,7 +136,8 @@ while ($row = mysqli_fetch_assoc($recent_result)) {
           </a>
           <ul class = "submenu">
           <li><a href="../reports/day_book.php"><i class="fas fa-book-open"></i> Day Book</a></li> 
-            <li><a href="../reports/cash_bank.php"><i class="fas fa-chart-line"></i> Cash/Bank Book</a></li> 
+            <li><a href="../reports/cash_bank.php"><i class="fas fa-piggy-bank"></i> Cash/Bank Book</a></li> 
+            <li><a href="../reports/sales_purchase_reg.php"><i class="fas fa-shopping-cart"></i> Sales and Purchase</a></li> 
           </ul>
       </li>
 
